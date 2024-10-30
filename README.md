@@ -2,6 +2,8 @@
 
 Repository for Masters thesis 2024/2025  
 
+write backtick ` using AltGr + ý  
+
 ### Github setup using GitBash
 1. Directory and file management
   go to directory: `cd DIR_PATH`  
