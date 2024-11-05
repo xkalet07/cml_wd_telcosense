@@ -35,3 +35,9 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# My Ignore #
+#############
+.ipynb_checkpoints
+desktop.ini
+__pycache__
