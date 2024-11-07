@@ -41,3 +41,9 @@ Thumbs.db
 .ipynb_checkpoints
 desktop.ini
 __pycache__
+
+# Backup folder #
+#################
+backup
+
+
