@@ -7,7 +7,7 @@ Lukáš Kaleta
 __goal:__ train existing CNN(1) on open sense cml and reference RADOLAN data from Germany(2).  
 
 __status:__  
-Prediction working with terrible performance.
+Prediction works
 Solved array size missmatch.  
 
 Working: Importing external data in netCDF, choosing one cml, converting to torch Tensor.   
