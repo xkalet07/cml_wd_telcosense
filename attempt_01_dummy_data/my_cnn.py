@@ -24,7 +24,7 @@ class ConvBlock(nn.Module):
         return x
 
 class cnn_class(nn.Module):
-    def __init__(self, kernel_size = 3, dropout = 0.4, n_fc_neurons = 64, n_filters = [24, 48, 48, 96, 192],):
+    def __init__(self, kernel_size = 3, dropout = 0.1, n_fc_neurons = 64, n_filters = [24, 48, 48, 96, 192],):
         super().__init__()
         self.channels = 2                      # 2 input cml channels
         self.kernelsize = kernel_size
@@ -43,12 +43,12 @@ class cnn_class(nn.Module):
         ### Fully Connected part 
         # no pooling implemented: not needed
         # neuron layers interlieved with dropout functions
-        self.dense1 = nn.Linear(192,n_fc_neurons)
+        self.dense1 = nn.Linear(n_filters[4],n_fc_neurons)
         self.drop1 = nn.Dropout(p=dropout)
         self.dense2 = nn.Linear(n_fc_neurons, n_fc_neurons)
         self.drop2 = nn.Dropout(dropout)
         self.denseOut = nn.Linear(n_fc_neurons, 1)                     # single value on the output
-        self.final_act = nn.Sigmoid()                                  # Sigmoid function to clasiify output val as 1/0
+        self.final_act = nn.Sigmoid()                                  # Sigmoid function to classify output val as 1/0
 
     
     def forward(self, x):
