@@ -4,7 +4,9 @@ Repository for Masters thesis 2024/2025
 Lukáš Kaleta  
 
 ## attempt_01
-__goal:__ train existing CNN(1) on open sense cml and reference RADOLAN data from Germany(2).  
+__goal:__  
+- train existing CNN(1) on open sense cml and reference RADOLAN data from Germany(2). 
+- calculate WAA using pycomlink function from Schleiss 2013. 
 
 __status:__  
 Prediction works with test loss around 0.2.  
