@@ -3,33 +3,49 @@
 Repository for Masters thesis 2024/2025
 Lukáš Kaleta  
 
+## Data preprocessing
+
+#### What should be done:
+- fault values replaced with NaN
+- long off times detected and removed from dataset
+- large trsl steps removed or dealed with: cml 496
+- right approach for standardisation. different median baseline for cmls with different lengths should be niceable, or cml length should be given.
+- 
+
 ## attempt_01
-__goal:__  
+#### Goal:  
 - train existing CNN(1) on open sense cml and reference RADOLAN data from Germany(2). 
 - calculate WAA using pycomlink function from Schleiss 2013. 
 
-__status:__  
+#### status:   
 Prediction works with test loss around 0.2.  
 Solved array size missmatch.  
-
 
 Working: Importing external data in netCDF, choosing one cml, converting to torch Tensor.   
 existing implementation acording to (1) uses 1 wet/dry flag for 180 time stamps (one of 100 samples). Why? My implementation aims to use one flag for one trsl measurement. Is that a good thinking? Compare the 2 aproaches.  
 
 
-__TODO: optimize learning__  
+#### TODO: optimize learning   
 - dropout rate: 0.4 is far to high, causes high learning curve ripple: set 0, later can be increased.  
 - learning rate lowered: 0.0001, learning is fast but convergs to high values.  
 - changed standardising: to min-max = 0-1, performance improved significantly!
 
-__TODO: non essential implementations__  
+#### TODO: non essential implementations   
 - sample shuffle: increases learning speed and precission.  
 - wet/dry 50/50 for faster learning?  
 - cnn threshold choosing algorhythm, currently set to 0.5.
 - improve cnn architecture.  
 - 
 
+
 ## attempt_02
+
+#### TODO: 
+- Add more cmls to dataset.  
+- Build dataset so 80 % of whole cmls are training data and 20 % testing.  
+- Implement some kind of shuffle, but keep the whole rain patterns intact.
+
+## attempt_xx
 In the next attempt. Implement it that period of trsl == reference wet/dry?  
 Meaning, for each trsl point there will be wet/dry flag predicted.  
 Forward and backward memory implementation will be needed.  
