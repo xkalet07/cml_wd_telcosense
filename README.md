@@ -24,11 +24,15 @@ Solved array size missmatch.
 Working: Importing external data in netCDF, choosing one cml, converting to torch Tensor.   
 existing implementation acording to (1) uses 1 wet/dry flag for 180 time stamps (one of 100 samples). Why? My implementation aims to use one flag for one trsl measurement. Is that a good thinking? Compare the 2 aproaches.  
 
-
-#### TODO: optimize learning   
+Optimize learning:   
 - dropout rate: 0.4 is far to high, causes high learning curve ripple: set 0, later can be increased.  
 - learning rate lowered: 0.0001, learning is fast but convergs to high values.  
 - changed standardising: to min-max = 0-1, performance improved significantly!
+
+#### TODO:
+- So, my cnn is learning but how do I use the learned cnn, how do I save the weights...  
+- Implement other models of WAA estimation.
+
 
 #### TODO: non essential implementations   
 - sample shuffle: increases learning speed and precission.  
@@ -39,6 +43,7 @@ existing implementation acording to (1) uses 1 wet/dry flag for 180 time stamps 
 
 
 ## attempt_02
+Do whole process with more cmls.  
 
 #### TODO: 
 - Add more cmls to dataset.  
