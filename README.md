@@ -46,8 +46,7 @@ Optimize learning:
 Do whole process with more cmls.  
 
 #### TODO: 
-- Add more cmls to dataset.  
-- Build dataset so 80 % of whole cmls are training data and 20 % testing.  
+- Add more cmls to dataset. current: 20   
 - Implement some kind of shuffle, but keep the whole rain patterns intact.
 
 ## attempt_xx
