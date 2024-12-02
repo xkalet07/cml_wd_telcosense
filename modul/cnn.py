@@ -11,7 +11,7 @@ class ConvBlock(nn.Module):
         self.dim = dim
         self.dim_in = dim_in
         self.dim_out = dim_out
-        self.proj1 = nn.Conv1d(dim_in, dim, self.kernelsize, padding='same')
+        self.proj1 = nn.Conv1d(dim_in, dim, self.kernelsize, padding='same') 	# padding same padds the input data to match the output dimension 
         self.proj2 = nn.Conv1d(dim, dim_out, self.kernelsize, padding='same')
         self.act1 = nn.ReLU()
         self.act2 = nn.ReLU()
@@ -24,7 +24,7 @@ class ConvBlock(nn.Module):
         return x
 
 class cnn_class(nn.Module):
-    def __init__(self, kernel_size = 5, dropout = 0.2, n_fc_neurons = 64, n_filters = [24, 48, 48, 96, 192],):
+    def __init__(self, kernel_size = 3, dropout = 0.2, n_fc_neurons = 64, n_filters = [24, 48, 48, 96, 192],):
         super().__init__()
         self.channels = 2                      # 2 input cml channels
         self.kernelsize = kernel_size
@@ -41,7 +41,7 @@ class cnn_class(nn.Module):
         self.act = nn.ReLU()                                                                            # Activation function: ReLU, after each convolution
 
         ### Fully Connected part 
-        # no pooling implemented: not needed
+        # no pooling implemented: not need
         # neuron layers interlieved with dropout functions
         self.dense1 = nn.Linear(n_filters[4],n_fc_neurons)
         self.drop1 = nn.Dropout(p=dropout)
