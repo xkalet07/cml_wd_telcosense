@@ -1,59 +1,52 @@
 # Rain activity detection using microwave link data with convolutional neural network
 
-Repository for Masters thesis 2024/2025
-Lukáš Kaleta  
+Repository of Masters thesis CNN implementation 2024/2025  
+author: Lukáš Kaleta  
+
+Included Jupyter notebooks showcase the data pre-processing and use of implemented CNN model
 
 ## Data preprocessing
 
-#### What should be done:
+#### Done:
 - fault values replaced with NaN
 - long off times detected and removed from dataset
-- large trsl steps removed or dealed with: cml 496
-- right approach for standardisation. different median baseline for cmls with different lengths should be niceable, or cml length should be given.
-- 
+- large trsl steps removed or dealed with: (see cml 496)
+- right approach for standardisation
+ 
 
-## attempt_01
-#### Goal:  
+## 01 training CNN on one CML
+#### Goal:
 - train existing CNN(1) on open sense cml and reference RADOLAN data from Germany(2). 
 - calculate WAA using pycomlink function from Schleiss 2013. 
 
 #### status:   
-Prediction works with test loss around 0.2.  
-Solved array size missmatch.  
+- Prediction works with test loss around 0.2.  
+- Solved array size missmatch.  
+- choosing one cml, converting to torch Tensor.   
+- 
 
-Working: Importing external data in netCDF, choosing one cml, converting to torch Tensor.   
-existing implementation acording to (1) uses 1 wet/dry flag for 180 time stamps (one of 100 samples). Why? My implementation aims to use one flag for one trsl measurement. Is that a good thinking? Compare the 2 aproaches.  
-
-Optimize learning:   
+### Optimize learning:   
 - dropout rate: 0.4 is far to high, causes high learning curve ripple: set 0, later can be increased.  
 - learning rate lowered: 0.0001, learning is fast but convergs to high values.  
 - changed standardising: to min-max = 0-1, performance improved significantly!
 
+
+## 02 training CNN on a dataset of 20 CMLs
+
+#### status:
+- Added more cmls to dataset. current: 20   
+
 #### TODO:
-- So, my cnn is learning but how do I use the learned cnn, how do I save the weights...  
-- Implement other models of WAA estimation.
-
-
-#### TODO: non essential implementations   
 - sample shuffle: increases learning speed and precission.  
-- wet/dry 50/50 for faster learning?  
-- cnn threshold choosing algorhythm, currently set to 0.5.
-- improve cnn architecture.  
-- 
+- wet/dry 50/50 for faster learning and more accurate TPR/TNR results  
+- CNN threshold optimalization algorhythm, currently set to 0.5.
+- improve the CNN architecture.
+ 
 
-
-## attempt_02
-Do whole process with more cmls.  
-
-#### TODO: 
-- Add more cmls to dataset. current: 20   
-- Implement some kind of shuffle, but keep the whole rain patterns intact.
-
-## attempt_xx
-In the next attempt. Implement it that period of trsl == reference wet/dry?  
-Meaning, for each trsl point there will be wet/dry flag predicted.  
-Forward and backward memory implementation will be needed.  
-This approach should bring better learning performance. For longer wet/dry periods there are ocasions, where the period is wet, but trsl shows rain pattern for only fraction of the period.  
+## 03 TODO after semestral thesis
+- period of trsl == reference wet/dry. Meaning, for each trsl point there will be wet/dry flag predicted.  
+- Forward and backward memory implementation will be needed.  
+- This approach should bring better learning performance. For longer wet/dry periods there are ocasions, where the period is wet, but trsl shows rain pattern for only fraction of the period.  
 
 
 ## current CNN architecture (1):
