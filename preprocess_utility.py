@@ -150,19 +150,34 @@ def build_dataset(cml_set:xr.Dataset, ref_set:xr.Dataset, sample_size = 10, num_
 ## TODO: 
 # exclude long dry periods. Make dataset 50:50
 
-
 ## TODO:
 # Handle missing values
+def exclude_missing_values(ds:xr.Dataset):
+    """
+    from given dataset, exclude cmls with missing values
 
-# # get cml ids with NaN gaps
-# cml_set['trsl_gap'] = (
-#         ('cml_id', 'time'), 
-#         np.logical_or(np.isnan(cml_set.trsl.isel(channel_id=0).values), np.isnan(cml_set.trsl.isel(channel_id=1).values))
-# )
+    Parameters
+    cml_set : xarray.dataset containing both several CMLs with rsl, tsl, trsl, 
+        timestamps and metadata, reference rainrate and wet/dry data for given CMLs
 
-# has_gap = np.any(cml_set.trsl_gap.values, axis=1)
-# cmls_without_gap = np.where(~has_gap)[0]
-# num_correct_cmls = len(cmls_without_gap)
+    Returns
+    ds : xarray.dataset
+    """
 
-# cml_set = cml_set.assign_coords({'has_gap':(('cml_id'), has_gap)})
-# ref_set = ref_set.assign_coords({'has_gap':(('cml_id'), has_gap)})
+    # get cml ids with NaN gaps
+    ds['trsl_gap'] = (
+            ('cml_id', 'sample_num', 'timestep'), 
+            np.logical_or(np.isnan(ds.trsl.isel(channel_id=0).values), np.isnan(ds.trsl.isel(channel_id=1).values))
+    )
+
+    has_gap = np.any(ds.trsl_gap.values, axis=(1,2))
+ 
+    ds = ds.assign_coords({'has_gap':(('cml_id'), has_gap)})
+    ds = ds.where(~ds["has_gap"], drop=True)
+    
+    # When vals are dropped, bool variables turn into int, has to be turned back
+    ds['trsl_gap'] = ds.trsl_gap.astype(bool)
+    ds['ref_wd'] = ds.ref_wd.astype(bool)
+
+    return ds
+

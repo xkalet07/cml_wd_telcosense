@@ -39,6 +39,12 @@ import datetime
 # Import own modules
 import modul.cnn_orig as cnn
 
+""" Variable definitions """
+
+
+""" Function definitions """
+
+## TODO: shuffle train and test data 
 
 def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, batchsize = 20, save_param = False):
     """
@@ -195,5 +201,3 @@ def cnn_classify(ds:xr.Dataset, sample_size:int, batchsize = 20, param_dir = 'de
         
     print(total_loss)
     return cnn_output
-
-

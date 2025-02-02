@@ -49,7 +49,7 @@ def plot_cnn_output(ds:xr.Dataset, cnn_wd_threshold = 0.5):
     # setup figure
     fig, axs = plt.subplots(num_cmls, 1, sharex=True, figsize=(12,num_cmls*2))
     ax1 = axs[0].twiny()
-    ax1.set_xlim(ds.time.values[0,0], ds.time.values[-1,-1])
+    ax1.set_xlim(ds.time.values[0,0,0], ds.time.values[0,-1,-1])                    # change to [0,0] and [-1,-1]
     fig.tight_layout(h_pad = 3)
 
     for n in range(num_cmls):    
@@ -90,35 +90,6 @@ def plot_cnn_output(ds:xr.Dataset, cnn_wd_threshold = 0.5):
             axs[n].axvspan(ds.sample_num.values[start_i], ds.sample_num.values[end_i], color='orange', alpha=0.5, linewidth=0, label='_'*start_i+'missed wet')
 
     plt.show()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
