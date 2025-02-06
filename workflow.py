@@ -45,7 +45,7 @@ import plot_utility
 
 """ ConstantVariable definitions """
 sample_size = 10 #min
-num_cmls = 20
+num_cmls = 200
 
 cnn_wd_threshold = 0.5
 """ Function definitions """
@@ -64,13 +64,14 @@ ref_set = preprocess_utility.ref_preprocess(ref_set, interp_max_gap='20min', res
 
 ds = preprocess_utility.build_dataset(cml_set, ref_set, sample_size, num_cmls)
 
-ds = preprocess_utility.exclude_missing_values(ds)
+
+#ds = preprocess_utility.exclude_missing_values(ds)
 
 ## TRAINING
-# cnn_utility.cnn_train(ds, sample_size=10, epochs=10, batchsize=50, save_param=False)
+cnn_utility.cnn_train(ds, sample_size=10, epochs=20, batchsize=50, save_param=False)
 
 ## CLASSIFICATION
-cnn_prediction = cnn_utility.cnn_classify(ds, sample_size=10, batchsize=50)
+# cnn_prediction = cnn_utility.cnn_classify(ds, sample_size, batchsize=50)
 
 
 ds['cnn_out'] = (('cml_id', 'sample_num'), np.array(cnn_prediction).reshape(len(ds.cml_id),-1))

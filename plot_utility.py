@@ -49,7 +49,7 @@ def plot_cnn_output(ds:xr.Dataset, cnn_wd_threshold = 0.5):
     # setup figure
     fig, axs = plt.subplots(num_cmls, 1, sharex=True, figsize=(12,num_cmls*2))
     ax1 = axs[0].twiny()
-    ax1.set_xlim(ds.time.values[0,0,0], ds.time.values[0,-1,-1])                    # change to [0,0] and [-1,-1]
+    ax1.set_xlim(ds.time.values[0,0], ds.time.values[-1,-1])                    # change to [0,0,0] and [0,-1,-1] if excluding fault cmls
     fig.tight_layout(h_pad = 3)
 
     for n in range(num_cmls):    
@@ -62,7 +62,7 @@ def plot_cnn_output(ds:xr.Dataset, cnn_wd_threshold = 0.5):
         axs[n].axhline(cnn_wd_threshold, color='black', linestyle='--', lw=0.5)
 
         # GREEN: plot true cnn predicted wet/dry areas
-        # tip from stack ovefrolw: https://stackoverflow.com/questions/44632903/setting-multiple-axvspan-labels-as-one-element-in-legend
+        # tip from stack oveflow: https://stackoverflow.com/questions/44632903/setting-multiple-axvspan-labels-as-one-element-in-legend
         start = np.roll(ds.true_wet[n], -1) & ~ds.true_wet[n]
         end = np.roll(ds.true_wet[n], 1) & ~ds.true_wet[n]
         for start_i, end_i in zip(

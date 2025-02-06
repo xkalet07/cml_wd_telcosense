@@ -19,6 +19,7 @@ Contact: 211312@vutbr.cz
 import numpy as np
 import xarray as xr
 
+from sklearn.utils import shuffle
 # Import external packages
 
 
@@ -90,6 +91,42 @@ def ref_preprocess(ref_set:xr.Dataset, interp_max_gap='20min', resample=10):
     return ref_set
 
 
+## TODO: 
+# exclude long dry periods. Make dataset 50:50
+def balance_wd_classes(cml_set:xr.Dataset, ref_set:xr.Dataset, sample_size = 60):
+    """
+    undersample wd reference and exclude large dry periods from both rainfall and cml data
+
+    Parameters
+    cml_set : xarray.dataset containing several CMLs with rsl, tsl, trsl, timestamps and metadata
+    ref_set : xarray.dataset containing reference rainrate and wet/dry data for given CMLs
+    sample_size : int, default value = 60 [min], length of samples
+
+    Returns
+    cml_set : xarray.dataset containing several CMLs with rsl, tsl, trsl, timestamps and metadata
+    ref_set : xarray.dataset containing reference rainrate and wet/dry data for given CMLs
+    """
+
+
+def balance_classes(a, boo):
+    """
+    From https://github.com/jpolz/cml_wd_pytorch
+    """
+    boo = boo[0,:]
+    lsn=len(a.sample_num)
+    ind = np.arange(lsn)
+    #ind_true = np.empty((len(a.cml_id),lsn))
+    #ind_false = np.empty((len(a.cml_id),lsn))
+    #for i in range(len(a.cml_id)):
+    ind_true = shuffle(ind[boo])
+    ind_false = ind[~boo]
+    ind_true = ind_true[:np.sum(~boo)]
+    print(1-(2*len(ind_false)/lsn))
+    return a.isel(sample_num=np.concatenate([ind_true,ind_false]))
+
+
+
+
 
 
 def build_dataset(cml_set:xr.Dataset, ref_set:xr.Dataset, sample_size = 10, num_cmls = float('nan')):
@@ -147,8 +184,7 @@ def build_dataset(cml_set:xr.Dataset, ref_set:xr.Dataset, sample_size = 10, num_
 
     return ds
 
-## TODO: 
-# exclude long dry periods. Make dataset 50:50
+
 
 ## TODO:
 # Handle missing values
