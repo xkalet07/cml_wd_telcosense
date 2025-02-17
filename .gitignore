@@ -26,6 +26,11 @@
 *.sql
 *.sqlite
 
+# Data files #
+##############
+*.csv
+*.xlsx
+
 # OS generated files #
 ######################
 .DS_Store
@@ -52,6 +57,7 @@ venv.bak/
 desktop.ini
 __pycache__
 training_improvement_notes.xlsx
+TelcoRain
 
 # Backup folder #
 #################
