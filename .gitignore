@@ -30,6 +30,7 @@
 ##############
 *.csv
 *.xlsx
+*.nc
 
 # OS generated files #
 ######################
@@ -58,6 +59,7 @@ desktop.ini
 __pycache__
 training_improvement_notes.xlsx
 TelcoRain
+example_data
 
 # Backup folder #
 #################
