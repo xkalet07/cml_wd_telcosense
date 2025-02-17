@@ -68,10 +68,10 @@ ds = preprocess_utility.build_dataset(cml_set, ref_set, sample_size, num_cmls)
 #ds = preprocess_utility.exclude_missing_values(ds)
 
 ## TRAINING
-cnn_utility.cnn_train(ds, sample_size=10, epochs=20, batchsize=50, save_param=False)
+# cnn_utility.cnn_train(ds, sample_size=10, epochs=20, batchsize=50, save_param=False)
 
 ## CLASSIFICATION
-# cnn_prediction = cnn_utility.cnn_classify(ds, sample_size, batchsize=50)
+cnn_prediction = cnn_utility.cnn_classify(ds, sample_size, batchsize=50)
 
 
 ds['cnn_out'] = (('cml_id', 'sample_num'), np.array(cnn_prediction).reshape(len(ds.cml_id),-1))
