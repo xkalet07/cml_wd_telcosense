@@ -104,12 +104,10 @@ def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, bat
             optimizer.zero_grad()
             pred = model(inputs)
             pred = nn.Flatten(0,1)(pred)            # transpose column data into row
+            
             # calculating the loss function        
-            #if np.isnan(pred.tolist()).any():      # prevents loss func calculation if prediction contains NaN
-             #   loss = 
-            #else:
-            if ~np.isnan(pred.tolist()).any():          # prevents loss func calculation if prediction contains NaN
-                loss = nn.BCELoss()(pred, targets)      # Targets and Imputs size must match
+            if ~np.isnan(pred.tolist()).any():            # exclude NaN values for loss calculation
+                loss = nn.BCELoss()(pred, targets)
                 loss.backward()
             optimizer.step()
             train_losses.append(loss.detach().numpy())
@@ -121,9 +119,13 @@ def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, bat
             for inputs, targets in tqdm(testloader):
                 pred = model(inputs)
                 pred = nn.Flatten(0,1)(pred)
-                if ~np.isnan(pred.tolist()).any():          # prevents loss func calculation if prediction contains NaN
-                    loss = nn.BCELoss()(pred, targets)
-                test_losses.append(loss.detach().numpy())
+
+                if np.isnan(pred.tolist()).any():            # exclude NaN values for loss calculation
+                    targets = targets[~np.isnan(pred.tolist())]
+                    pred = pred[~np.isnan(pred.tolist())]
+                loss = nn.BCELoss()(pred, targets)
+                if ~np.isnan(loss.tolist()).any():           # this case prevents appending nan loss to lossfunc array
+                    test_losses.append(loss.detach().numpy())
             loss_dict['test']['loss'].append(np.mean(test_losses))
             
         # learning curve
@@ -200,9 +202,13 @@ def cnn_classify(ds:xr.Dataset, sample_size:int, batchsize = 20, param_dir = 'de
             pred = model(inputs)
             pred = nn.Flatten(0,1)(pred)
             cnn_output = cnn_output + pred.tolist()
-            if ~np.isnan(pred.tolist()).any():          # this case prevents loss func calculation if prediction contains NaN
-                loss = nn.BCELoss()(pred, targets)
-            valid_losses.append(loss.detach().numpy())
+
+            if np.isnan(pred.tolist()).any():            # exclude NaN values for loss calculation
+                targets = targets[~np.isnan(pred.tolist())]
+                pred = pred[~np.isnan(pred.tolist())]
+            loss = nn.BCELoss()(pred, targets)
+            if ~np.isnan(loss.tolist()).any():           # this case prevents appending nan loss to lossfunc array
+                valid_losses.append(loss.detach().numpy())
         total_loss = np.mean(valid_losses)
         
     print(total_loss)

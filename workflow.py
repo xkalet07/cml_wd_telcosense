@@ -68,7 +68,7 @@ ds = preprocess_utility.build_dataset(cml_set, ref_set, sample_size, num_cmls)
 #ds = preprocess_utility.exclude_missing_values(ds)
 
 ## TRAINING
-# cnn_utility.cnn_train(ds, sample_size=10, epochs=20, batchsize=50, save_param=False)
+#cnn_utility.cnn_train(ds, sample_size=10, epochs=20, batchsize=50, save_param=False)
 
 ## CLASSIFICATION
 cnn_prediction = cnn_utility.cnn_classify(ds, sample_size, batchsize=50)
