@@ -72,7 +72,7 @@ path = 'TelcoRain/merged_data/summit/'
 file_list = sorted(os.listdir(path))                   # sort alphanumerically
 
 #for k in range(100):
-i = 90      # multiples of 2 up to 103
+i = 62      # multiples of 2 up to 103
 
 cml_A_ip = file_list[i][file_list[i].rfind('CML_')+4:-4]
 
@@ -83,38 +83,43 @@ cml = cml.rename(columns={'SRA10M':'rain', 'cml_PrijimanaUroven':'rsl_A','cml_Up
 # TODO: load cml B using its IP, not i+1
 cml['rsl_B'] = pd.read_csv(path+file_list[i+1], usecols=['cml_PrijimanaUroven'])
 
-#cml['rsl_A'] = cml.rsl_A.where(abs((cml.rsl_A-cml.rsl_A.mean())/cml.rsl_A.std()) < 13.0)
-#cml['rsl_B'] = cml.rsl_B.where(abs((cml.rsl_B-cml.rsl_B.mean())/cml.rsl_B.std()) < 13.0)
-
 
 ## PREPROCESS
-# interpolation both rsl, and R
+
+# First interpolation both rsl, and R and drop missing values
 cml = cml.interpolate(axis=0, method='linear', limit = 10)
-# skip rows with missing rsl values
 cml = cml.dropna(axis=0, how = 'all', subset=['rsl_A','rsl_B'])
-#cml = cml.interpolate(axis=0, method='nearest', limit = 10)
 
-# Convert to Pandas Series for easy rolling median calculation
+
+# calculate rolling STD
 window_size = 10  # Adjust based on your data characteristics
-rolling_median = cml.rsl_A.rolling(window=window_size, center=True).median()
-
+rolling_std = cml.rsl_A.rolling(window=window_size, center=True).std()
 # Fill NaN values at the edges
-rolling_median.fillna(method='bfill', inplace=True)
-rolling_median.fillna(method='ffill', inplace=True)
+rolling_std.fillna(method='bfill', inplace=True)
+rolling_std.fillna(method='ffill', inplace=True)
 
-# Define threshold for step detection
-threshold = 20  # Adjust this based on normal data fluctuations
+# threshold for step detection
+threshold = 10  # Adjust this based on normal data fluctuations
+step_mask = np.abs(rolling_std) > threshold
 
-# Find indices where step change occurs
-step_mask = np.abs(cml.rsl_A - rolling_median) > threshold
+cml['rsl_A'] = cml.rsl_A.where(~step_mask)
 
-# Suppress steps by replacing them with the rolling median
-rsl_corrected = cml.rsl_A.copy()
-rsl_corrected[step_mask] = rolling_median[step_mask]
+nan_indexes_A = cml['rsl_A'].index[cml['rsl_A'].apply(np.isnan)]
 
-cml['roll_median'] = rolling_median
-cml['rslA_correct'] = rsl_corrected
-cml['step_mask'] = step_mask*1
+cml['new_A'] = cml['rsl_A']
+
+
+
+# Drop faulty single extreme values (non detected by std)
+cml['rsl_A'] = cml.rsl_A.where(abs((cml.rsl_A-cml.rsl_A.mean())/cml.rsl_A.std()) < 10.0)
+cml['rsl_B'] = cml.rsl_B.where(abs((cml.rsl_B-cml.rsl_B.mean())/cml.rsl_B.std()) < 10.0)
+
+
+# interpolation both rsl, and R
+# cml = cml.interpolate(axis=0, method='linear', limit = 10)
+# skip rows with missing rsl values
+#cml = cml.dropna(axis=0, how = 'all', subset=['rsl_A','rsl_B'])
+#cml = cml.interpolate(axis=0, method='nearest', limit = 10)
 
 
 # standardisation
