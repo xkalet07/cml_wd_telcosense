@@ -18,6 +18,8 @@ Contact: 211312@vutbr.cz
 
 import numpy as np
 import xarray as xr
+import os
+import csv
 
 from sklearn.utils import shuffle
 # Import external packages
@@ -30,6 +32,29 @@ from sklearn.utils import shuffle
 
 
 """ Function definitions """
+
+def find_missing_ref_rainrate(path = 'TelcoRain/merged_data/summit/'):
+    """
+    Detect merged cml-rainGauge files which are missing refference rainrate. 
+    Meaning: print meteo stations without rain gauge.
+
+    Parameters:
+    path : str, default value = 'TelcoRain/merged_data/summit/', default directory of files
+    """
+
+    # Get the list of all csvs
+    file_list = os.listdir(path)
+
+    print('meteo stations missing rain gauge:')
+
+    for file in file_list:
+        with open(path+file, 'r') as fp:
+            s = fp.read()
+            if 'SRA10M' not in s:
+                print(file)
+            fp.close()
+    
+
 
 def cml_preprocess(cml_set:xr.Dataset, interp_max_gap='5min'):
     """
