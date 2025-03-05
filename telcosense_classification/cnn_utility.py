@@ -37,7 +37,7 @@ import datetime
 
 
 # Import own modules
-import modul.cnn_orig as cnn
+import telcosense_classification.module.cnn_orig as cnn
 
 """ Variable definitions """
 

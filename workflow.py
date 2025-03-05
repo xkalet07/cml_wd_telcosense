@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Filename: workflow.py
+Filename: telcorain_workflow.py
 Author: Lukas Kaleta
-Date: 2025-01-31
+Date: 2025-02-19
 Version: 1.0
 Description: 
     This script showcases the typical workflow of training an CNN module
-    for rain event detection using data from CML.
+    for rain event detection using CML data from czech republic and CHMI.
 
 License: 
 Contact: 211312@vutbr.cz
@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 
 import xarray as xr
 import pandas as pd
+import os
 
 import torch
 import torch.nn as nn
@@ -31,60 +32,79 @@ import sklearn.metrics as skl
 from sklearn.utils import shuffle
 from tqdm import tqdm
 import datetime
-#from IPython.display import clear_output
 
 # Import external packages
-import pycomlink as pycml
 
 # Import own modules
-import modul.cnn_orig as cnn
-import preprocess_utility
-import cnn_utility
-import plot_utility
+import telcosense_classification.module.cnn_orig as cnn
+from telcosense_classification import preprocess_utility
+from telcosense_classification import cnn_utility
+from telcosense_classification import plot_utility
 
 
 """ ConstantVariable definitions """
-sample_size = 10 #min
-num_cmls = 200
 
-cnn_wd_threshold = 0.5
 """ Function definitions """
 
 
 """ Main """
 
-# load 500 CMLs with 1 min time step
-cml_set = xr.open_dataset('example_data/example_cml_data.nc', engine='netcdf4') 
-cml_set = preprocess_utility.cml_preprocess(cml_set, interp_max_gap='5min')
+# problems:
+# WARNING: meteo 0-203-0-11515 has no SRA10M value. Therefore unusable!
+# TODO: bad gauge reference interpolation
+# DONE: rain gauge reference SRA10M is missing in some technologies
+# DONE-doublecheck: single extreme rsl values like 90 dB or so.
+# DONE-doublecheck: calculate new mean value when skipping large nan gaps, causing steps in rsl data
+# tip?: floating standardization excludes long term fluctuation
+# TODO: load cml B using its IP, not i+1
+# DONE: filtered metadata is duplicative. each cml is there 2 times identically
+# tip: cmlAip and cmlBip are next to each other and cmlBip is always cmlAip+1
 
-# load path averaged reference RADOLAN data aligned with all 500 CML IDs with 5 min time step
-ref_set = xr.open_dataset('example_data/example_path_averaged_reference_data.nc', engine='netcdf4')
-ref_set = ref_set.rename_vars({'rainfall_amount':'rain'})
-ref_set = preprocess_utility.ref_preprocess(ref_set, interp_max_gap='20min', resample=sample_size)
+## LOADING DATA
+# Loading metadata
+metadata_all = pd.read_csv('TelcoRain/filtered_radius1.0km_offset1.0_CML.csv')
+metadata_all = metadata_all.drop_duplicates()          # clean duplicative rows
 
-ds = preprocess_utility.build_dataset(cml_set, ref_set, sample_size, num_cmls)
+# !!!!!! Summit technology rsl [-dB]
+
+# Get the list of all csvs
+path = 'TelcoRain/merged_data/summit/'
+file_list = sorted(os.listdir(path))                   # sort alphanumerically
+
+#for k in range(100):
+i = 34      # multiples of 2 up to 102
+# problematic: 2, 4, 62
+
+cml_A_ip = file_list[i][file_list[i].rfind('CML_')+4:-4]
+
+metadata = metadata_all.loc[metadata_all['IP_address_A'] == cml_A_ip]
+
+cml = pd.read_csv(path+file_list[i], usecols=['time','SRA10M','cml_PrijimanaUroven'])   #,'cml_MaximalniRychlostRadia(modulace)' cml_Teplota,cml_RxDatovyTok,cml_KvalitaSignalu,cml_Uptime
+cml = cml.rename(columns={'SRA10M':'rain', 'cml_PrijimanaUroven':'rsl_A','cml_Uptime':'uptime_A'})
+cml['rsl_B'] = pd.read_csv(path+file_list[i+1], usecols=['cml_PrijimanaUroven'])
+
+# make copies for presentation only
+cml['rsl_A_orig'] = cml.rsl_A.copy()
+cml['rsl_B_orig'] = cml.rsl_B.copy()
+
+## PREPROCESS
+cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10)
+
+## WD reference
+cml = preprocess_utility.ref_preprocess(cml, comp_lin_interp=True, upsampled_n_times=20)
+
+fig, axs = plt.subplots(figsize=(12, 6))
+#fig.tight_layout(h_pad = 3)
+cml.plot(ax=axs,x='time',subplots=True)                          #xlim=[737500,742500]
+#from matplotlib.widgets import Cursor
+#cursor = Cursor(ax=axs, useblit=True, color='red', linewidth=2)
+plt.show()
 
 
-#ds = preprocess_utility.exclude_missing_values(ds)
 
 ## TRAINING
-#cnn_utility.cnn_train(ds, sample_size=10, epochs=20, batchsize=50, save_param=False)
 
 ## CLASSIFICATION
-cnn_prediction = cnn_utility.cnn_classify(ds, sample_size, batchsize=50)
-
-
-ds['cnn_out'] = (('cml_id', 'sample_num'), np.array(cnn_prediction).reshape(len(ds.cml_id),-1))
-ds['cnn_wd'] = (('cml_id', 'sample_num'), ds.cnn_out.values > cnn_wd_threshold)
-
-# predicted TP, FP, FN
-ds['true_wet'] = ds.cnn_wd & ds.ref_wd 
-ds['false_alarm'] = ds.cnn_wd & ~ds.ref_wd
-ds['missed_wet'] = ~ds.cnn_wd & ds.ref_wd
-
-
-plot_utility.plot_cnn_output(ds, cnn_wd_threshold=0.5)
-
 
 
 
