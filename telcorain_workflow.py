@@ -72,7 +72,8 @@ path = 'TelcoRain/merged_data/summit/'
 file_list = sorted(os.listdir(path))                   # sort alphanumerically
 
 #for k in range(100):
-i = 62      # multiples of 2 up to 103
+i = 34      # multiples of 2 up to 102
+# problematic: 2, 4, 62
 
 cml_A_ip = file_list[i][file_list[i].rfind('CML_')+4:-4]
 
@@ -83,48 +84,54 @@ cml = cml.rename(columns={'SRA10M':'rain', 'cml_PrijimanaUroven':'rsl_A','cml_Up
 # TODO: load cml B using its IP, not i+1
 cml['rsl_B'] = pd.read_csv(path+file_list[i+1], usecols=['cml_PrijimanaUroven'])
 
+# make copies
+cml['rsl_A_orig'] = cml.rsl_A.copy()
+cml['rsl_B_orig'] = cml.rsl_B.copy()
 
 ## PREPROCESS
-
 # First interpolation both rsl, and R and drop missing values
 cml = cml.interpolate(axis=0, method='linear', limit = 10)
 cml = cml.dropna(axis=0, how = 'all', subset=['rsl_A','rsl_B'])
 
-
 # calculate rolling STD
 window_size = 10  # Adjust based on your data characteristics
-rolling_std = cml.rsl_A.rolling(window=window_size, center=True).std()
-# Fill NaN values at the edges
-rolling_std.fillna(method='bfill', inplace=True)
-rolling_std.fillna(method='ffill', inplace=True)
+threshold = 5     # Adjust this based on normal data fluctuations
 
-# threshold for step detection
-threshold = 10  # Adjust this based on normal data fluctuations
-step_mask = np.abs(rolling_std) > threshold
+for rsl in ['rsl_A', 'rsl_B']:
+    rolling_std = cml[rsl].rolling(window=window_size, center=True).std()
+    # Fill NaN values at the edges
+    rolling_std.fillna(method='bfill', inplace=True)
+    rolling_std.fillna(method='ffill', inplace=True)
 
-cml['rsl_A'] = cml.rsl_A.where(~step_mask)
+    # threshold for step detection
+    step_mask = np.abs(rolling_std) > threshold
+    shifted_mask = np.roll(step_mask, -1)
+    shifted_mask[-1] = False  # Prevent wraparound issues
+    step_loc = np.where(step_mask & ~shifted_mask)[0]
+    step_loc = np.append(0,step_loc)
 
-nan_indexes_A = cml['rsl_A'].index[cml['rsl_A'].apply(np.isnan)]
+    # drop values around the step
+    cml[rsl] = cml[rsl].where(~step_mask)
 
-cml['new_A'] = cml['rsl_A']
+    # If rsl step is present, align values
+    for i in range(len(step_loc)):
+        if i < len(step_loc)-1:
+            cml[rsl][step_loc[i]:step_loc[i+1]] = cml[rsl][step_loc[i]:step_loc[i+1]] - cml[rsl][step_loc[i]:step_loc[i+1]].mean()
+        elif i >= len(step_loc)-1:
+            cml[rsl][step_loc[i]:] = cml[rsl][step_loc[i]:] - cml[rsl][step_loc[i]:].mean()
+    
 
+    # Drop faulty single extreme values by Z method (non detected by std)
+    cml[rsl] = cml[rsl].where(abs((cml[rsl]-cml[rsl].mean())/cml[rsl].std()) < 10.0)
 
-
-# Drop faulty single extreme values (non detected by std)
-cml['rsl_A'] = cml.rsl_A.where(abs((cml.rsl_A-cml.rsl_A.mean())/cml.rsl_A.std()) < 10.0)
-cml['rsl_B'] = cml.rsl_B.where(abs((cml.rsl_B-cml.rsl_B.mean())/cml.rsl_B.std()) < 10.0)
-
+    # standardisation
+    cml[rsl] = cml[rsl].values / cml[rsl].max()
 
 # interpolation both rsl, and R
-# cml = cml.interpolate(axis=0, method='linear', limit = 10)
-# skip rows with missing rsl values
-#cml = cml.dropna(axis=0, how = 'all', subset=['rsl_A','rsl_B'])
-#cml = cml.interpolate(axis=0, method='nearest', limit = 10)
+cml = cml.interpolate(axis=0, method='linear')
 
 
-# standardisation
-#cml['srsl_A'] = (cml.rsl_A.values - cml.rsl_A.min()) / (cml.rsl_A.max() - cml.rsl_A.min())
-#cml['srsl_B'] = (cml.rsl_B.values - cml.rsl_B.min()) / (cml.rsl_B.max() - cml.rsl_B.min())
+
 
 ## WD reference
 # Find indices where values transition from nonzero to zero (end of pattern)
@@ -137,17 +144,16 @@ last_indices = np.where(nonzero_mask & ~shifted_mask)[0]
 for idx in last_indices:
     cml.rain[max(0, idx - 19): idx + 1] = 0  # Ensure we don't go out of bounds
 
-cml['ref_wd'] = cml.rain.where(cml.rain == 0, True).astype(bool)
+cml['ref_wd'] = cml.rain.where(cml.rain == 0, True).astype(bool)*1
 
 
 
 
 fig, axs = plt.subplots(figsize=(12, 6))
-#axs.set_xlim(cml.time.values[500000], cml.time.values[-1])    
 #fig.tight_layout(h_pad = 3)
-cml.plot(ax=axs,x='time',subplots=True)
-from matplotlib.widgets import Cursor
-cursor = Cursor(ax=axs, useblit=True, color='red', linewidth=2)
+cml.plot(ax=axs,subplots=True)                          #xlim=[737500,742500]
+#from matplotlib.widgets import Cursor
+#cursor = Cursor(ax=axs, useblit=True, color='red', linewidth=2)
 plt.show()
 
 
