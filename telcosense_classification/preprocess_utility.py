@@ -16,6 +16,7 @@ Contact: 211312@vutbr.cz
 """ Imports """
 # Import python libraries
 
+import math
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -83,6 +84,8 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10, window_size = 10, std_
     # calculate rolling STD
     
     for rsl in ['rsl_A', 'rsl_B']:
+
+        
         rolling_std = cml[rsl].rolling(window=window_size, center=True).std()
         # Fill NaN values at the edges
         rolling_std.fillna(method='bfill', inplace=True)
@@ -101,16 +104,20 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10, window_size = 10, std_
         # If rsl step is present, align values
         for i in range(len(step_loc)):
             if i < len(step_loc)-1:
-                cml[rsl][step_loc[i]:step_loc[i+1]] = cml[rsl][step_loc[i]:step_loc[i+1]] - cml[rsl][step_loc[i]:step_loc[i+1]].mean()
+                cml[rsl][step_loc[i]:step_loc[i+1]] = cml[rsl][step_loc[i]:step_loc[i+1]] - math.floor(cml[rsl][step_loc[i]:step_loc[i+1]].mean())
             elif i >= len(step_loc)-1:
-                cml[rsl][step_loc[i]:] = cml[rsl][step_loc[i]:] - cml[rsl][step_loc[i]:].mean()
+                cml[rsl][step_loc[i]:] = cml[rsl][step_loc[i]:] - math.floor(cml[rsl][step_loc[i]:].mean())
         
 
 
         # Drop faulty single extreme values by Z method (non detected by std)
-        cml[rsl] = cml[rsl].where(abs((cml[rsl]-cml[rsl].mean())/cml[rsl].std()) < z_threshold)
-        cml[rsl+'z'] = (cml[rsl]-cml[rsl].mean())/cml[rsl].std()
-        cml[rsl] = cml[rsl].where(((cml[rsl]-cml[rsl].mean())/cml[rsl].std()) > -3.0)
+        z_param = (cml[rsl]-cml[rsl].mean())/cml[rsl].std()
+        cml[rsl+'Z'] = z_param
+        cml[rsl] = cml[rsl].where(z_param < z_threshold)
+        cml[rsl] = cml[rsl].where(z_param > -3.0)
+
+        # median
+        cml[rsl+'mean'] = cml[rsl].rolling(window=100, center=True).mean()
 
         # standardisation
         cml[rsl] = cml[rsl].values / cml[rsl].max()

@@ -53,6 +53,7 @@ from telcosense_classification import plot_utility
 # WARNING: meteo 0-203-0-11515 has no SRA10M value. Therefore unusable!
 # TODO: bad gauge reference interpolation
 # DONE: rain gauge reference SRA10M is missing in some technologies
+# TODO: skip cmls without SRA10M inside the main skript: check for it
 # DONE-doublecheck: single extreme rsl values like 90 dB or so.
 # DONE-doublecheck: calculate new mean value when skipping large nan gaps, causing steps in rsl data
 # tip?: floating standardization excludes long term fluctuation
@@ -72,20 +73,22 @@ path = 'TelcoRain/merged_data/summit/'
 file_list = sorted(os.listdir(path))                   # sort alphanumerically
 
 #for k in range(100):
-i = 34      # multiples of 2 up to 102
-# problematic: 2, 4, 62
+i = 100      # multiples of 2 up to 102
+# problematic: 2, 4, 62, 32, 34, 100
+# nice: 78
+# ideal showcase: 100
 
 cml_A_ip = file_list[i][file_list[i].rfind('CML_')+4:-4]
 
 metadata = metadata_all.loc[metadata_all['IP_address_A'] == cml_A_ip]
 
-cml = pd.read_csv(path+file_list[i], usecols=['time','SRA10M','cml_PrijimanaUroven'])   #,'cml_MaximalniRychlostRadia(modulace)' cml_Teplota,cml_RxDatovyTok,cml_KvalitaSignalu,cml_Uptime
+cml = pd.read_csv(path+file_list[i], usecols=['time','SRA10M','cml_PrijimanaUroven'])   #,,'cml_KvalitaSignalu','cml_Teplota',cml_RxDatovyTok,cml_Uptime
 cml = cml.rename(columns={'SRA10M':'rain', 'cml_PrijimanaUroven':'rsl_A','cml_Uptime':'uptime_A'})
 cml['rsl_B'] = pd.read_csv(path+file_list[i+1], usecols=['cml_PrijimanaUroven'])
 
 # make copies for presentation only
-cml['rsl_A_orig'] = cml.rsl_A.copy()
-cml['rsl_B_orig'] = cml.rsl_B.copy()
+#cml['rsl_A_orig'] = cml.rsl_A.copy()
+#cml['rsl_B_orig'] = cml.rsl_B.copy()
 
 ## PREPROCESS
 cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10)
@@ -93,11 +96,13 @@ cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10)
 ## WD reference
 cml = preprocess_utility.ref_preprocess(cml, comp_lin_interp=True, upsampled_n_times=20)
 
+
 fig, axs = plt.subplots(figsize=(12, 6))
 #fig.tight_layout(h_pad = 3)
-cml.plot(ax=axs,x='time',subplots=True)                          #xlim=[737500,742500]
-#from matplotlib.widgets import Cursor
-#cursor = Cursor(ax=axs, useblit=True, color='red', linewidth=2)
+cml.plot(ax=axs,subplots=True)                          #x='time', 
+#cml.plot(ax=axs,x='time',subplots=True)   
+from matplotlib.widgets import Cursor
+cursor = Cursor(ax=axs, useblit=True, color='red', linewidth=2)
 plt.show()
 
 
