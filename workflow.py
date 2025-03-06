@@ -73,7 +73,7 @@ path = 'TelcoRain/merged_data/summit/'
 file_list = sorted(os.listdir(path))                   # sort alphanumerically
 
 #for k in range(100):
-i = 100      # multiples of 2 up to 102
+i = 88      # multiples of 2 up to 102
 # problematic: 2, 4, 62, 32, 34, 100
 # nice: 78
 # ideal showcase: 100
@@ -91,10 +91,11 @@ cml['rsl_B'] = pd.read_csv(path+file_list[i+1], usecols=['cml_PrijimanaUroven'])
 #cml['rsl_B_orig'] = cml.rsl_B.copy()
 
 ## PREPROCESS
-cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10)
+#cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10)
+cml = preprocess_utility.cml_detect_step(cml)
 
 ## WD reference
-cml = preprocess_utility.ref_preprocess(cml, comp_lin_interp=True, upsampled_n_times=20)
+#cml = preprocess_utility.ref_preprocess(cml, comp_lin_interp=True, upsampled_n_times=20)
 
 
 fig, axs = plt.subplots(figsize=(12, 6))

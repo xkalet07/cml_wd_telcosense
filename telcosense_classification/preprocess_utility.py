@@ -85,7 +85,6 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10, window_size = 10, std_
     
     for rsl in ['rsl_A', 'rsl_B']:
 
-        
         rolling_std = cml[rsl].rolling(window=window_size, center=True).std()
         # Fill NaN values at the edges
         rolling_std.fillna(method='bfill', inplace=True)
@@ -128,6 +127,49 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10, window_size = 10, std_
     return cml
 
 
+def cml_detect_step(cml:pd.DataFrame):
+    """
+    detect steps in rsl mean value and alighn periods with extremely different mean value
+
+    Parameters
+    cml : Pandas.DataFrame, containing two aligned adjacent CMLs and rainrate reference with timestamps.
+    
+    Returns
+    cml : Pandas.DataFrame
+    """
+    # First interpolation both rsl, and R and drop missing values
+    cml = cml.interpolate(axis=0, method='linear', limit = 10)
+    cml = cml.dropna(axis=0, how = 'all', subset=['rsl_A','rsl_B'])
+
+    from scipy.signal import find_peaks
+    step = np.hstack((np.ones(100), -1*np.ones(100)))
+
+    for rsl in ['rsl_A', 'rsl_B']:
+        # standardisation
+        cml_min = cml[rsl].min()
+        cml_max = cml[rsl].max()
+        cml[rsl] = (cml[rsl].values-cml_min) / (cml_max-cml_min)
+
+        conv = np.abs(np.convolve(cml[rsl], step, mode='valid'))
+        conv = np.append(np.append(np.zeros(100),conv),np.zeros(99))
+        cml[rsl+'_conv'] = conv 
+
+        step_mask = (conv > 20.0)
+
+        cml[rsl] = cml[rsl].where(~step_mask)
+                
+        # Find indices where convolution reaches maximum
+        step_loc,_ = find_peaks( cml[rsl+'_conv'].where(step_mask), prominence=1)
+        step_loc = np.append(0,step_loc)
+
+        # If rsl step is present, align values
+        for i in range(len(step_loc)):
+            if i < len(step_loc)-1:
+                cml[rsl][step_loc[i]:step_loc[i+1]] = cml[rsl][step_loc[i]:step_loc[i+1]] - cml[rsl][step_loc[i]:step_loc[i+1]].mean()
+            elif i >= len(step_loc)-1:
+                cml[rsl][step_loc[i]:] = cml[rsl][step_loc[i]:] - cml[rsl][step_loc[i]:].mean()
+
+    return cml
 
 
 def ref_preprocess(cml:pd.DataFrame, comp_lin_interp = False, upsampled_n_times = int(0)):
