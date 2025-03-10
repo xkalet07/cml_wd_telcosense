@@ -103,9 +103,9 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
     # Anomaly handling
     if suppress_step:
         cml = cml_suppress_step(cml,conv_threshold)
-    elif std_method:
+    if std_method:
         cml = cml_suppress_extremes_std(cml, window_size, std_threshold)
-    elif z_method:
+    if z_method:
         cml = cml_suppress_extremes_z(cml, z_threshold)
 
     # standardisation
@@ -133,6 +133,7 @@ def cml_suppress_extremes_std(cml:pd.DataFrame, window_size = 10, std_threshold 
     # calculate rolling STD
     for rsl in ['rsl_A', 'rsl_B']:
         rolling_std = cml[rsl].rolling(window=window_size, center=True).std()
+        # cml[rsl+'_std'] = rolling_std
 
         # Fill NaN values at the edges
         rolling_std.fillna(method='bfill', inplace=True)
@@ -165,9 +166,9 @@ def cml_suppress_extremes_z(cml:pd.DataFrame, z_threshold = 10.0):
     for rsl in ['rsl_A', 'rsl_B']:
         # Drop faulty single extreme values by Z method (non detected by std)
         z_param = (cml[rsl]-cml[rsl].mean())/cml[rsl].std()
+        # cml[rsl+'_z'] = z_param        
         cml[rsl] = cml[rsl].where(z_param < z_threshold)
         cml[rsl] = cml[rsl].where(z_param > -3.0)
-
     # interpolation both rsl, and R
     cml = cml.interpolate(axis=0, method='linear')
 
@@ -199,7 +200,7 @@ def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 20.0):
         conv = np.abs(np.convolve(cml[rsl], step, mode='valid'))
         conv = np.append(np.append(np.zeros(100),conv),np.zeros(99))
         
-        cml[rsl+'_conv'] = conv
+        convDF = pd.DataFrame(conv, columns=['conv'])
 
         step_mask = (conv > conv_threshold)
         
@@ -207,7 +208,7 @@ def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 20.0):
         #cml[rsl] = cml[rsl].where(~step_mask)
                 
         # Find indices where convolution reaches maximum
-        step_loc,_ = find_peaks( cml[rsl+'_conv'].where(step_mask), prominence=1)
+        step_loc,_ = find_peaks( convDF.conv.where(step_mask), prominence=1)
         step_loc = np.append(0,step_loc)
 
         # If rsl step is present, align values
@@ -217,8 +218,6 @@ def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 20.0):
             elif i >= len(step_loc)-1:
                 cml[rsl][step_loc[i]:] = cml[rsl][step_loc[i]:] - cml[rsl][step_loc[i]:].mean()
         
-        cml.drop(rsl+'_conv', axis=1)
-
     return cml
 
 

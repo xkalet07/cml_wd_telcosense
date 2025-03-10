@@ -103,13 +103,71 @@ cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10,
 cml = preprocess_utility.ref_preprocess(cml, comp_lin_interp=True, upsampled_n_times=20)
 
 # plot
-fig, axs = plt.subplots(figsize=(12, 6))
+fig, axs = plt.subplots(2,1, figsize=(12, 2))
 #fig.tight_layout(h_pad = 3)
 #cml.plot(ax=axs,subplots=True)                          #x='time', 
-cml.plot(ax=axs,x='time',subplots=True)   
-from matplotlib.widgets import Cursor
-cursor = Cursor(ax=axs, useblit=True, color='red', linewidth=2)
+cml.rsl_A.plot(ax=axs[0])   
+cml.rsl_B.plot(ax=axs[0]) 
+cml.rain.plot(ax=axs[1])
+#axs.set_xlim(cml.rsl_A.values[0], cml.rsl_A.values[-1])
+#from matplotlib.widgets import Cursor
+#cursor = Cursor(ax=axs, useblit=True, color='red', linewidth=2)
+
+ref_wet_start = np.roll(cml.ref_wd, -1) & ~cml.ref_wd
+ref_wet_end = np.roll(cml.ref_wd, 1) & ~cml.ref_wd
+for start_i, end_i in zip(
+    ref_wet_start.values.nonzero()[0],
+    ref_wet_end.values.nonzero()[0],
+):
+    axs[0].axvspan(start_i, end_i, color='b', alpha=0.5, linewidth=0, label='_'*start_i+'true wet') 
+
+
+
+
+
+
+
+# plot real bool wet/dry
+wet_start = np.roll(my_ref.ref_wd, -1) & ~my_ref.ref_wd
+wet_end = np.roll(my_ref.ref_wd, 1) & ~my_ref.ref_wd
+for wet_start_i, wet_end_i in zip(
+    wet_start.values.nonzero()[0],
+    wet_end.values.nonzero()[0],
+):
+    axs[1].axvspan(my_ref.time.values[wet_start_i], my_ref.ref_wd.time.values[wet_end_i], color='b', alpha=0.2, linewidth=0); # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.axvspan.html
+    axs[0].axvspan(my_ref.time.values[wet_start_i], my_ref.ref_wd.time.values[wet_end_i], color='b', alpha=0.2, linewidth=0); # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.axvspan.html
+
+
+# axes limits source: https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.set_xlim.html
+axs[1].set_xlim(my_cml.time.values[0], my_cml.time.values[-1])
+axs[0].set_xlabel('')
+axs[1].set_title("")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 plt.show()
+
+
+
+
+
+# setup figure
+fig, axs = plt.subplots(1, sharex=True, figsize=(12,6))
+
+ax1.set_xlim(ds.time.values[0,0], ds.time.values[-1,-1])                    # change to [0,0,0] and [0,-1,-1] if excluding fault cmls
+fig.tight_layout(h_pad = 3)
 
 
 
