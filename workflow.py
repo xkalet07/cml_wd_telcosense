@@ -60,6 +60,8 @@ from telcosense_classification import plot_utility
 # TODO: load cml B using its IP, not i+1
 # DONE: filtered metadata is duplicative. each cml is there 2 times identically
 # tip: cmlAip and cmlBip are next to each other and cmlBip is always cmlAip+1
+# TODO: copy data into NaN gaps from adjacent cml #cml['rsl_A'] = cml.rsl_A + cml.rsl_B.where(np.isnan(cml.rsl_A))
+# TODO: delete few values around step
 
 ## LOADING DATA
 # Loading metadata
@@ -73,7 +75,7 @@ path = 'TelcoRain/merged_data/summit/'
 file_list = sorted(os.listdir(path))                   # sort alphanumerically
 
 #for k in range(100):
-i = 88      # multiples of 2 up to 102
+i = 4      # multiples of 2 up to 102
 # problematic: 2, 4, 62, 32, 34, 100
 # nice: 78
 # ideal showcase: 100
@@ -87,12 +89,12 @@ cml = cml.rename(columns={'SRA10M':'rain', 'cml_PrijimanaUroven':'rsl_A','cml_Up
 cml['rsl_B'] = pd.read_csv(path+file_list[i+1], usecols=['cml_PrijimanaUroven'])
 
 # make copies for presentation only
-#cml['rsl_A_orig'] = cml.rsl_A.copy()
-#cml['rsl_B_orig'] = cml.rsl_B.copy()
+cml['rsl_A_orig'] = cml.rsl_A.copy()
+cml['rsl_B_orig'] = cml.rsl_B.copy()
 
 ## PREPROCESS
-#cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10)
-cml = preprocess_utility.cml_detect_step(cml)
+cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10, conv_threshold = 20.0, window_size = 10, std_threshold = 5.0, z_threshold = 10.0)
+
 
 ## WD reference
 #cml = preprocess_utility.ref_preprocess(cml, comp_lin_interp=True, upsampled_n_times=20)
@@ -100,8 +102,8 @@ cml = preprocess_utility.cml_detect_step(cml)
 
 fig, axs = plt.subplots(figsize=(12, 6))
 #fig.tight_layout(h_pad = 3)
-cml.plot(ax=axs,subplots=True)                          #x='time', 
-#cml.plot(ax=axs,x='time',subplots=True)   
+#cml.plot(ax=axs,subplots=True)                          #x='time', 
+cml.plot(ax=axs,x='time',subplots=True)   
 from matplotlib.widgets import Cursor
 cursor = Cursor(ax=axs, useblit=True, color='red', linewidth=2)
 plt.show()
