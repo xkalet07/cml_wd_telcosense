@@ -36,28 +36,41 @@ from sklearn.utils import shuffle
 
 """ Function definitions """
 
-def find_missing_ref_rainrate(path = 'TelcoRain/merged_data/summit/'):
+def find_missing_column(parameter_name:str, path = 'TelcoRain/merged_data/summit/'):
     """
-    Detect merged cml-rainGauge files which are missing refference rainrate. 
-    Meaning: print meteo stations without rain gauge.
+    Search merged cml-rainGauge files in given directory for specific column name.
+    Returns list of filenames, which are missing given parameter column.
+    Typical names: 'time', 'SRA10M', 'cml_PrijimanaUroven', 'cml_Uptime', 'cml_Teplota'
 
     Parameters:
-    path : str, default value = 'TelcoRain/merged_data/summit/', default directory of files
+    parameter_name : str, specific parameter name to be searched
+    path : str, default value = 'TelcoRain/merged_data/summit/', directory to search
+
+    Returns:
+    output_list : list, list of files missing given parameter (column) name
     """
 
-    # Get the list of all csvs
+    # Get the list of all files
     file_list = os.listdir(path)
-
-    print('meteo stations missing rain gauge:')
+    
+    output_list = []
 
     for file in file_list:
         with open(path+file, 'r') as fp:
             s = fp.read()
-            if 'SRA10M' not in s:
-                print(file)
+            if parameter_name not in s:
+                output_list.append(file)
             fp.close()
-    
-def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10, conv_threshold = 20.0, window_size = 10, std_threshold = 5.0, z_threshold = 10.0):
+
+    return output_list
+
+
+
+def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10, 
+                   suppress_step = False, conv_threshold = 20.0, 
+                   std_method = False, window_size = 10, std_threshold = 5.0, 
+                   z_method = False, z_threshold = 10.0
+                   ):
     """
     Preprocess cml dataset: Interpolate gaps, Exclude NaN values,
     standardise values by subtracting mean and scaling to 0-1.
@@ -68,11 +81,14 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10, conv_threshold = 20.0,
     Parameters
     cml : Pandas.DataFrame, containing two aligned adjacent CMLs and rainrate reference with timestamps.
     interp_max_gap : int, default value = 10, maximal gap in each data column to be interpolated.
-    window_size : int, default = 10, Window size for rolling STD. Adjust based on your data characteristics.
+    suppress_step : boolean, default = False, perform rsl step compensation: True/False.
     conv_threshold : float, default = 20.0, threshold for Large steps detection using convolution.
         Adjust this based on normal data fluctuations
+    std_method : boolean, default = False, perform rsl extreme detection using std method: True/False.
+    window_size : int, default = 10, Window size for rolling STD. Adjust based on your data characteristics.
     std_threshold : float, default = 5.0, threshold for extreme value detection using STD.
         Adjust this based on normal data fluctuations
+    z_method : boolean, default = False, perform rsl extreme detection using Z method: True/False.
     z_threshold : float, default = 10.0, threshold for extreme value detection using Z method.
         Adjust this based on fluctuations of your data
     
@@ -85,13 +101,16 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10, conv_threshold = 20.0,
     cml = cml.interpolate(axis=0, method='linear')
     
     # Anomaly handling
-    cml = cml_suppress_step(cml,conv_threshold)
-    cml = cml_suppress_extremes_std(cml, window_size, std_threshold)
-    cml = cml_suppress_extremes_z(cml, z_threshold)
-
+    if suppress_step:
+        cml = cml_suppress_step(cml,conv_threshold)
+    elif std_method:
+        cml = cml_suppress_extremes_std(cml, window_size, std_threshold)
+    elif z_method:
+        cml = cml_suppress_extremes_z(cml, z_threshold)
 
     # standardisation
-    cml['rsl_A'] = cml.rsl_A.values / cml.rsl_A.max()
+    for rsl in ['rsl_A', 'rsl_B']:
+        cml[rsl] = cml[rsl].values / cml[rsl].max()
     
     return cml
 
@@ -159,7 +178,7 @@ def cml_suppress_extremes_z(cml:pd.DataFrame, z_threshold = 10.0):
 
 def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 20.0):
     """
-    detect steps in rsl mean value and alighn periods with extremely different mean value
+    Detect steps in rsl mean value and alighn periods with extremely different mean value
 
     Parameters
     cml : Pandas.DataFrame, containing two aligned adjacent CMLs and rainrate reference with timestamps.
@@ -179,7 +198,8 @@ def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 20.0):
 
         conv = np.abs(np.convolve(cml[rsl], step, mode='valid'))
         conv = np.append(np.append(np.zeros(100),conv),np.zeros(99))
-        cml[rsl+'_conv'] = conv 
+        
+        cml[rsl+'_conv'] = conv
 
         step_mask = (conv > conv_threshold)
         
@@ -196,6 +216,8 @@ def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 20.0):
                 cml[rsl][step_loc[i]:step_loc[i+1]] = cml[rsl][step_loc[i]:step_loc[i+1]] - cml[rsl][step_loc[i]:step_loc[i+1]].mean()
             elif i >= len(step_loc)-1:
                 cml[rsl][step_loc[i]:] = cml[rsl][step_loc[i]:] - cml[rsl][step_loc[i]:].mean()
+        
+        cml.drop(rsl+'_conv', axis=1)
 
     return cml
 
@@ -234,8 +256,7 @@ def ref_preprocess(cml:pd.DataFrame, comp_lin_interp = False, upsampled_n_times 
     return cml
 
 
-## TODO: 
-# exclude long dry periods. Make dataset 50:50
+## TODO: exclude long dry periods. Make dataset 50:50
 def balance_wd_classes(cml_set:xr.Dataset, ref_set:xr.Dataset, sample_size = 60):
     """
     undersample wd reference and exclude large dry periods from both rainfall and cml data
