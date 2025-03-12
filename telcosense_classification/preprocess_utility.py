@@ -98,6 +98,7 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
     # First interpolation both rsl, and R and drop missing values
     cml = cml.interpolate(axis=0, method='linear', limit = interp_max_gap)
     cml = cml.dropna(axis=0, how = 'all', subset=['rsl_A','rsl_B'])
+    cml = cml.reset_index(drop=True)
     cml = cml.interpolate(axis=0, method='linear')
     
     # Anomaly handling
@@ -221,15 +222,19 @@ def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 20.0):
     return cml
 
 
-def ref_preprocess(cml:pd.DataFrame, comp_lin_interp = False, upsampled_n_times = int(0)):
+def ref_preprocess(cml:pd.DataFrame, 
+                   comp_lin_interp = False, upsampled_n_times = int(0),
+                   supress_single_zeros = False):
     """
     Create wet/dry flag from rain rate reference included in cml DataFrame.
-    Optional feature: zero out last N-2 values of rainy periods, caused by upsampling
+    Optional features: Supress single zeros during light precipitation.
+    Zero out last N-2 values of rainy periods, caused by upsampling
     and interpolation between last nonzero and first zero sample, vausing non zero leakage 
     into zero values after rainy period.
 
     Parameters
     cml : Pandas.DaraFrame containing cml data and corresponding reference raifall data
+    supress_single_zeros : bool, default = False, Supress single zeros if True
     comp_lin_interp : bool, default = False, Compensate for nonzero leakage if True
     upsampled_n_times : int, default value = 0, number of times upsampled. Defining 
         number of samples to be zeroed.
@@ -237,13 +242,30 @@ def ref_preprocess(cml:pd.DataFrame, comp_lin_interp = False, upsampled_n_times 
     Returns
     cml : Pandas.DataFrame
     """
+    # Supress single zeros during light precipitation
+    if supress_single_zeros:
+        nonzero_mask1 = cml.rain != 0
+        shifted_mask_L = np.roll(nonzero_mask1, -1)
+        shifted_mask_L[-1] = False  # Prevent wraparound issues
+        shifted_mask_R = np.roll(nonzero_mask1, 1)
+        shifted_mask_R[1] = False  # Prevent wraparound issues
+        shifted_mask_RR = np.roll(shifted_mask_R, 1)
+        shifted_mask_RR[1] = False  # Prevent wraparound issues
+
+        single_zeros = np.where(shifted_mask_L & (shifted_mask_R | shifted_mask_RR) & ~nonzero_mask1)[0]
+        
+        #single_zeros = np.where(np.roll(rain_start,-1) & np.roll(rain_end,1))[0]
+        cml.rain[single_zeros] = 0.1
+
+
     # Compensating linear interpolation:
     # Find indices where values transition from nonzero to zero (end of rain patterns)
     if comp_lin_interp & (upsampled_n_times >= 2):
-        nonzero_mask = cml.rain != 0
-        shifted_mask = np.roll(nonzero_mask, -1)
+        nonzero_mask2 = cml.rain != 0
+        shifted_mask = np.roll(nonzero_mask2, -1)
         shifted_mask[-1] = False  # Prevent wraparound issues
-        last_indices = np.where(nonzero_mask & ~shifted_mask)[0]
+
+        last_indices = np.where(nonzero_mask2 & ~shifted_mask)[0]
 
         # Zero out interpolated nonzero values at the end of rain patter
         for idx in last_indices:

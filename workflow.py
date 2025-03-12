@@ -62,6 +62,7 @@ from telcosense_classification import plot_utility
 # TODO: copy data into NaN gaps from adjacent cml #cml['rsl_A'] = cml.rsl_A + cml.rsl_B.where(np.isnan(cml.rsl_A))
 # TODO: delete few values around step
 # TODO: better interpolation: https://stackoverflow.com/questions/30533021/interpolate-or-extrapolate-only-small-gaps-in-pandas-dataframe
+# TODO: dry 10min segments during light rainfall
 
 ## LOADING DATA
 # Loading metadata
@@ -75,7 +76,7 @@ path = 'TelcoRain/merged_data/summit/'
 file_list = sorted(os.listdir(path))                   # sort alphanumerically
 
 #for k in range(100):
-i = 100      # multiples of 2 up to 102
+i = 50      # multiples of 2 up to 102
 # problematic: 2, 4, 62, 32, 34, 100
 # nice: 78
 # ideal showcase: 100
@@ -100,18 +101,22 @@ cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10,
                    )
 
 ## WD reference
-cml = preprocess_utility.ref_preprocess(cml, comp_lin_interp=True, upsampled_n_times=20)
+cml = preprocess_utility.ref_preprocess(cml, 
+                                        comp_lin_interp=False, upsampled_n_times=20,
+                                        supress_single_zeros=True
+                                        )
 
 # plot
-fig, axs = plt.subplots(2,1, figsize=(12, 2))
+fig, axs = plt.subplots(2,1, figsize=(12, 4))
 #fig.tight_layout(h_pad = 3)
 #cml.plot(ax=axs,subplots=True)                          #x='time', 
 cml.rsl_A.plot(ax=axs[0])   
 cml.rsl_B.plot(ax=axs[0]) 
 cml.rain.plot(ax=axs[1])
+
 #axs.set_xlim(cml.rsl_A.values[0], cml.rsl_A.values[-1])
-#from matplotlib.widgets import Cursor
-#cursor = Cursor(ax=axs, useblit=True, color='red', linewidth=2)
+from matplotlib.widgets import Cursor
+cursor = Cursor(ax=axs[1], useblit=True, color='red', linewidth=2)
 
 ref_wet_start = np.roll(cml.ref_wd, -1) & ~cml.ref_wd
 ref_wet_end = np.roll(cml.ref_wd, 1) & ~cml.ref_wd
@@ -119,41 +124,7 @@ for start_i, end_i in zip(
     ref_wet_start.values.nonzero()[0],
     ref_wet_end.values.nonzero()[0],
 ):
-    axs[0].axvspan(start_i, end_i, color='b', alpha=0.5, linewidth=0, label='_'*start_i+'true wet') 
-
-
-
-
-
-
-
-# plot real bool wet/dry
-wet_start = np.roll(my_ref.ref_wd, -1) & ~my_ref.ref_wd
-wet_end = np.roll(my_ref.ref_wd, 1) & ~my_ref.ref_wd
-for wet_start_i, wet_end_i in zip(
-    wet_start.values.nonzero()[0],
-    wet_end.values.nonzero()[0],
-):
-    axs[1].axvspan(my_ref.time.values[wet_start_i], my_ref.ref_wd.time.values[wet_end_i], color='b', alpha=0.2, linewidth=0); # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.axvspan.html
-    axs[0].axvspan(my_ref.time.values[wet_start_i], my_ref.ref_wd.time.values[wet_end_i], color='b', alpha=0.2, linewidth=0); # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.axvspan.html
-
-
-# axes limits source: https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.set_xlim.html
-axs[1].set_xlim(my_cml.time.values[0], my_cml.time.values[-1])
-axs[0].set_xlabel('')
-axs[1].set_title("")
-
-
-
-
-
-
-
-
-
-
-
-
+    axs[1].axvspan(start_i, end_i, color='b', alpha=0.5, linewidth=0, label='_') 
 
 
 
@@ -163,16 +134,9 @@ plt.show()
 
 
 
-# setup figure
-fig, axs = plt.subplots(1, sharex=True, figsize=(12,6))
-
-ax1.set_xlim(ds.time.values[0,0], ds.time.values[-1,-1])                    # change to [0,0,0] and [0,-1,-1] if excluding fault cmls
-fig.tight_layout(h_pad = 3)
-
-
-
 ## TRAINING
 
 ## CLASSIFICATION
 
 
+input
