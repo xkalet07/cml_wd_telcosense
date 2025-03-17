@@ -21,7 +21,6 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import os
-import csv
 
 from scipy.signal import find_peaks
 from sklearn.utils import shuffle
@@ -36,7 +35,7 @@ from sklearn.utils import shuffle
 
 """ Function definitions """
 
-def find_missing_column(parameter_name:str, path = 'TelcoRain/merged_data/summit/'):
+def find_missing_column(parameter_name:str, path:str):
     """
     Search merged cml-rainGauge files in given directory for specific column name.
     Returns list of filenames, which are missing given parameter column.
@@ -44,7 +43,7 @@ def find_missing_column(parameter_name:str, path = 'TelcoRain/merged_data/summit
 
     Parameters:
     parameter_name : str, specific parameter name to be searched
-    path : str, default value = 'TelcoRain/merged_data/summit/', directory to search
+    path : str, directory to search
 
     Returns:
     output_list : list, list of files missing given parameter (column) name
@@ -69,57 +68,73 @@ def find_missing_column(parameter_name:str, path = 'TelcoRain/merged_data/summit
 def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10, 
                    suppress_step = False, conv_threshold = 20.0, 
                    std_method = False, window_size = 10, std_threshold = 5.0, 
-                   z_method = False, z_threshold = 10.0
+                   z_method = False, z_threshold = 10.0,
+                   reset_detect = True
                    ):
     """
     Preprocess cml dataset: Interpolate gaps, Exclude NaN values,
     standardise values by subtracting mean and scaling to 0-1.
     Optional:
-        remove fault extreme values in rsl series using STD or Z method,
-        detect steps in rsl mean value and alighn periods with extremely different mean value,
+        Remove fault extreme values in trsl series using STD or Z method,
+        Detect steps in trsl mean value and alighn periods with extremely different mean value,
+        Detect cml reset using uptime
         
     Parameters
     cml : Pandas.DataFrame, containing two aligned adjacent CMLs and rainrate reference with timestamps.
     interp_max_gap : int, default value = 10, maximal gap in each data column to be interpolated.
-    suppress_step : boolean, default = False, perform rsl step compensation: True/False.
+    suppress_step : boolean, default = False, perform trsl step compensation if True.
     conv_threshold : float, default = 20.0, threshold for Large steps detection using convolution.
         Adjust this based on normal data fluctuations
-    std_method : boolean, default = False, perform rsl extreme detection using std method: True/False.
+    std_method : boolean, default = False, perform trsl extreme detection using std method if True.
     window_size : int, default = 10, Window size for rolling STD. Adjust based on your data characteristics.
     std_threshold : float, default = 5.0, threshold for extreme value detection using STD.
         Adjust this based on normal data fluctuations
-    z_method : boolean, default = False, perform rsl extreme detection using Z method: True/False.
+    z_method : boolean, default = False, perform trsl extreme detection using Z method if True.
     z_threshold : float, default = 10.0, threshold for extreme value detection using Z method.
         Adjust this based on fluctuations of your data
+    reset_detect : boolean, default = True, perform trsl reset detection if True.
     
     Returns
     cml : Pandas.DataFrame
     """
-    # First interpolation both rsl, and R and drop missing values
+    # exclude extreme values
+    cml['trsl_A'] = cml.trsl_A.where(cml.trsl_A < 99.0)
+    cml['trsl_B'] = cml.trsl_B.where(cml.trsl_B < 99.0)
+
+    # First interpolation both trsl, and R and drop missing values
     cml = cml.interpolate(axis=0, method='linear', limit = interp_max_gap)
-    cml = cml.dropna(axis=0, how = 'all', subset=['rsl_A','rsl_B'])
+    cml = cml.dropna(axis=0, how = 'all', subset=['trsl_A','trsl_B'])
     cml = cml.reset_index(drop=True)
     cml = cml.interpolate(axis=0, method='linear')
     
     # Anomaly handling
-    if suppress_step:
+    if reset_detect:
+        cml = cml_reset_detect(cml)
+    if suppress_step: 
         cml = cml_suppress_step(cml,conv_threshold)
     if std_method:
         cml = cml_suppress_extremes_std(cml, window_size, std_threshold)
     if z_method:
         cml = cml_suppress_extremes_z(cml, z_threshold)
 
+
     # standardisation
-    for rsl in ['rsl_A', 'rsl_B']:
-        cml[rsl] = cml[rsl].values / cml[rsl].max()
+    for trsl in ['trsl_A', 'trsl_B']:
+        #cml[trsl] = cml[trsl].values / cml[trsl].max()
+
+        # standardisation
+        cml_min = cml[trsl].min()
+        cml_max = cml[trsl].max()
+        cml[trsl] = (cml[trsl].values-cml_min) / (cml_max-cml_min)
     
     return cml
 
 
 
+
 def cml_suppress_extremes_std(cml:pd.DataFrame, window_size = 10, std_threshold = 5.0):
     """
-    Remove fault extreme values in rsl series by calculating floating window std,
+    Remove fault extreme values in trsl series by calculating floating window std,
     interpolate missing values
 
     Parameters
@@ -132,18 +147,18 @@ def cml_suppress_extremes_std(cml:pd.DataFrame, window_size = 10, std_threshold 
     cml : Pandas.DataFrame
     """
     # calculate rolling STD
-    for rsl in ['rsl_A', 'rsl_B']:
-        rolling_std = cml[rsl].rolling(window=window_size, center=True).std()
-        # cml[rsl+'_std'] = rolling_std
+    for trsl in ['trsl_A', 'trsl_B']:
+        rolling_std = cml[trsl].rolling(window=window_size, center=True).std()
+        # cml[trsl+'_std'] = rolling_std
 
         # Fill NaN values at the edges
         rolling_std.fillna(method='bfill', inplace=True)
         rolling_std.fillna(method='ffill', inplace=True)
 
         # drop values with STD above the threshold
-        cml[rsl] = cml[rsl].where(np.abs(rolling_std) < std_threshold)
+        cml[trsl] = cml[trsl].where(np.abs(rolling_std) < std_threshold)
 
-    # interpolation both rsl, and R
+    # interpolation both trsl, and R
     cml = cml.interpolate(axis=0, method='linear')
 
     return cml
@@ -152,7 +167,7 @@ def cml_suppress_extremes_std(cml:pd.DataFrame, window_size = 10, std_threshold 
 
 def cml_suppress_extremes_z(cml:pd.DataFrame, z_threshold = 10.0):
     """
-    Remove fault extreme values in rsl series based on Z method:
+    Remove fault extreme values in trsl series based on Z method:
     Z = (x-mean)/std
     interpolate missing values
 
@@ -164,13 +179,13 @@ def cml_suppress_extremes_z(cml:pd.DataFrame, z_threshold = 10.0):
     Returns
     cml : Pandas.DataFrame
     """
-    for rsl in ['rsl_A', 'rsl_B']:
+    for trsl in ['trsl_A', 'trsl_B']:
         # Drop faulty single extreme values by Z method (non detected by std)
-        z_param = (cml[rsl]-cml[rsl].mean())/cml[rsl].std()
-        # cml[rsl+'_z'] = z_param        
-        cml[rsl] = cml[rsl].where(z_param < z_threshold)
-        cml[rsl] = cml[rsl].where(z_param > -3.0)
-    # interpolation both rsl, and R
+        z_param = (cml[trsl]-cml[trsl].mean())/cml[trsl].std()
+        #cml[trsl+'_z'] = z_param        
+        cml[trsl] = cml[trsl].where(abs(z_param) < z_threshold)
+        cml[trsl] = cml[trsl].where(z_param > -5.0)
+    # interpolation both trsl, and R
     cml = cml.interpolate(axis=0, method='linear')
 
     return cml
@@ -180,7 +195,7 @@ def cml_suppress_extremes_z(cml:pd.DataFrame, z_threshold = 10.0):
 
 def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 20.0):
     """
-    Detect steps in rsl mean value and alighn periods with extremely different mean value
+    Detect steps in trsl mean value and alighn periods with extremely different mean value
 
     Parameters
     cml : Pandas.DataFrame, containing two aligned adjacent CMLs and rainrate reference with timestamps.
@@ -190,35 +205,69 @@ def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 20.0):
     Returns
     cml : Pandas.DataFrame
     """
-    step = np.hstack((np.ones(100), -1*np.ones(100)))
+    step = np.hstack((np.ones(500), -1*np.ones(500)))
 
-    for rsl in ['rsl_A', 'rsl_B']:
+    for trsl in ['trsl_A', 'trsl_B']:
         # standardisation
-        cml_min = cml[rsl].min()
-        cml_max = cml[rsl].max()
-        cml[rsl] = (cml[rsl].values-cml_min) / (cml_max-cml_min)
+        cml_min = cml[trsl].min()
+        cml_max = cml[trsl].max()
+        cml[trsl] = (cml[trsl].values-cml_min) / (cml_max-cml_min)
 
-        conv = np.abs(np.convolve(cml[rsl], step, mode='valid'))
-        conv = np.append(np.append(np.zeros(100),conv),np.zeros(99))
+        conv = np.abs(np.convolve(cml[trsl], step, mode='valid'))
+        conv = np.append(np.append(np.zeros(500),conv),np.zeros(499))
         
+        cml[trsl+'_conv'] = conv
+
         convDF = pd.DataFrame(conv, columns=['conv'])
 
         step_mask = (conv > conv_threshold)
-        
-        # TODO: delete few values around step
-        #cml[rsl] = cml[rsl].where(~step_mask)
-                
+                        
         # Find indices where convolution reaches maximum
-        step_loc,_ = find_peaks( convDF.conv.where(step_mask), prominence=1)
+        step_loc,_ = find_peaks(convDF.conv.where(step_mask), prominence=1)
+        
+        # delete +-5 values around step
+        around_step = np.array([step_loc+(a-5) for a in range(10)]).ravel()
+        cml[trsl][around_step] = np.nan
+        
         step_loc = np.append(0,step_loc)
-
-        # If rsl step is present, align values
+        
+        # If trsl step is present, align values
         for i in range(len(step_loc)):
             if i < len(step_loc)-1:
-                cml[rsl][step_loc[i]:step_loc[i+1]] = cml[rsl][step_loc[i]:step_loc[i+1]] - cml[rsl][step_loc[i]:step_loc[i+1]].mean()
+                cml[trsl][step_loc[i]:step_loc[i+1]] = cml[trsl][step_loc[i]:step_loc[i+1]] - cml[trsl][step_loc[i]:step_loc[i+1]].mean()
             elif i >= len(step_loc)-1:
-                cml[rsl][step_loc[i]:] = cml[rsl][step_loc[i]:] - cml[rsl][step_loc[i]:].mean()
+                cml[trsl][step_loc[i]:] = cml[trsl][step_loc[i]:] - cml[trsl][step_loc[i]:].mean()
         
+    return cml
+
+
+
+def cml_reset_detect(cml:pd.DataFrame):
+    """
+    Detect cml reset by detecting stepdown in Uptime data. delete and interpolate values around 
+
+    Parameters
+    cml : Pandas.DataFrame, containing two aligned adjacent CMLs and rainrate reference with timestamps.
+    
+    Returns
+    cml : Pandas.DataFrame
+    """
+
+    # Get the indices where the uptime stepdown happens
+    stepdown_mask = (cml['uptime_A'].diff() <= 0) | (cml['uptime_B'].diff() <= 0)
+    #stepdown_mask = (cml['uptime_A'].diff() < 0) | (cml['uptime_B'].diff() < 0)
+    stepdown_indices = cml.index[stepdown_mask]
+
+    # delete +-5 values around step
+    #around_stepdown = np.array([stepdown_indices+(a-5) for a in range(10)]).ravel()
+    cml['trsl_A'][stepdown_indices] = np.nan
+    cml['trsl_B'][stepdown_indices] = np.nan
+
+    # interpolation both trsl, and R
+    cml = cml.interpolate(axis=0, method='linear', limit=20)
+    cml = cml.dropna(axis=0, how = 'all', subset=['trsl_A','trsl_B'])
+    cml = cml.reset_index(drop=True)
+
     return cml
 
 
@@ -273,6 +322,7 @@ def ref_preprocess(cml:pd.DataFrame,
 
     # create reference WD flag
     cml['ref_wd'] = cml.rain.where(cml.rain == 0, True).astype(bool)
+    cml['ref_wd'][0] = False
 
     return cml
 
@@ -283,12 +333,12 @@ def balance_wd_classes(cml_set:xr.Dataset, ref_set:xr.Dataset, sample_size = 60)
     undersample wd reference and exclude large dry periods from both rainfall and cml data
 
     Parameters
-    cml_set : xarray.dataset containing several CMLs with rsl, tsl, trsl, timestamps and metadata
+    cml_set : xarray.dataset containing several CMLs with trsl, tsl, ttrsl, timestamps and metadata
     ref_set : xarray.dataset containing reference rainrate and wet/dry data for given CMLs
     sample_size : int, default value = 60 [min], length of samples
 
     Returns
-    cml_set : xarray.dataset containing several CMLs with rsl, tsl, trsl, timestamps and metadata
+    cml_set : xarray.dataset containing several CMLs with trsl, tsl, ttrsl, timestamps and metadata
     ref_set : xarray.dataset containing reference rainrate and wet/dry data for given CMLs
     """
     '''def balance_classes(a, boo):
