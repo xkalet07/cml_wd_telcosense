@@ -3,18 +3,41 @@
 Repository of Masters thesis CNN implementation 2024/2025  
 author: Lukáš Kaleta  
 
-Included Jupyter notebooks showcase the data pre-processing and use of implemented CNN model
+## objectives:
+
+DONE: bad gauge reference interpolation  
+DONE: rain gauge reference SRA10M is missing in some technologies  
+DONE: skip cmls without SRA10M inside the main skript: check for it. Long computation!!!  
+DONE-doublecheck: single extreme rsl values like 90 dB or so.  
+DONE-doublecheck: calculate new mean value when skipping large nan gaps, causing steps in rsl data  
+tip: floating standardization excludes long term fluctuation  
+TODO: load cml B using its IP, not i+1  
+DONE: filtered metadata is duplicative. each cml is there 2 times identically  
+tip: cmlAip and cmlBip are next to each other and cmlBip is always cmlAip+1  
+TODO: copy data into NaN gaps from adjacent cml #cml['rsl_A'] = cml.rsl_A + cml.rsl_B.where(np.isnan(cml.rsl_A))  
+TODO: copy adjacent data, if large chunk of rsl is missing: 1s10: 12  
+DONE: delete few values around step  
+TODO: better interpolation: https://stackoverflow.com/questions/30533021/interpolate-or-extrapolate-only-small-gaps-in-pandas-dataframe  
+DONE: detect uptime resets  
+DONE: dry 10min segments during light rainfall  
+tip: Summit technology rsl is [-dB]  
+TODO: Feed cnn constant metadata such as frequency, technology, length...  
+TODO: Feed cnn the cml temperature  
+DONE: If uptime is constant drop values  
+TODO: spikes remaining around step after supressing the step in preprocessing (especially 1s10)  
+tip: all datetime is in UTC time  
+TODO: Different preprocess tresholds for different cml technologies  
+TODO: period of trsl == reference wet/dry. Meaning, for each trsl point there will be wet/dry flag predicted.  
+TODO: Forward and backward memory implementation will be needed.  
+TODO: This approach should bring better learning performance. For longer wet/dry periods there are ocasions, where the period is wet, but trsl shows rain pattern for only fraction of the period.  
+
+
 
 ## Data preprocessing
 
-#### Done:
-- fault values replaced with NaN
-- long off times detected and removed from dataset
-- large trsl steps removed or dealed with: (see cml 496)
-- right approach for standardisation
- 
+## RADOLAN and Pycomlink data 
 
-## 01 training CNN on one CML
+### 01 training CNN on one CML
 #### Goal:
 - train existing CNN(1) on open sense cml and reference RADOLAN data from Germany(2). 
 - calculate WAA using pycomlink function from Schleiss 2013. 
@@ -25,13 +48,13 @@ Included Jupyter notebooks showcase the data pre-processing and use of implement
 - choosing one cml, converting to torch Tensor.   
 - 
 
-### Optimize learning:   
+#### Optimize learning:   
 - dropout rate: 0.4 is far to high, causes high learning curve ripple: set 0, later can be increased.  
 - learning rate lowered: 0.0001, learning is fast but convergs to high values.  
 - changed standardising: to min-max = 0-1, performance improved significantly!
 
 
-## 02 training CNN on a dataset of 20 CMLs
+### 02 training CNN on a dataset of 20 CMLs
 
 #### status:
 - Added more cmls to dataset. current: 20   
@@ -42,14 +65,7 @@ Included Jupyter notebooks showcase the data pre-processing and use of implement
 - CNN threshold optimalization algorhythm, currently set to 0.5.
 - improve the CNN architecture.
  
-
-## 03 TODO after semestral thesis
-- period of trsl == reference wet/dry. Meaning, for each trsl point there will be wet/dry flag predicted.  
-- Forward and backward memory implementation will be needed.  
-- This approach should bring better learning performance. For longer wet/dry periods there are ocasions, where the period is wet, but trsl shows rain pattern for only fraction of the period.  
-
-
-## current CNN architecture (1):
+### current CNN architecture (1):
 Input (2 channels) → Convolution Block 1 → Convolution Block 2 → Convolution Block 3 → Convolution 5a → Convolution 5b → Flatten → Dense Layer 1 → Dropout 1 → Dense Layer 2 → Dropout 2 → Output Layer → Sigmoid Activation → Final Output (0 or 1).  
 
 #### Convolutional Part:

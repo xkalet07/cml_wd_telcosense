@@ -37,6 +37,9 @@ Contact: 211312@vutbr.cz
 # TODO: spikes remaining around step after supressing the step in preprocessing (especially 1s10)
 # tip: all datetime is in UTC time
 # TODO: Different preprocess tresholds for different cml technologies
+# TODO: period of trsl == reference wet/dry. Meaning, for each trsl point there will be wet/dry flag predicted.  
+# TODO: Forward and backward memory implementation will be needed.  
+# TODO: This approach should bring better learning performance. For longer wet/dry periods there are ocasions, where the period is wet, but trsl shows rain pattern for only fraction of the period.  
 
 
 
