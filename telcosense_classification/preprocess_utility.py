@@ -35,33 +35,7 @@ from sklearn.utils import shuffle
 
 """ Function definitions """
 
-def find_missing_column(parameter_name:str, path:str):
-    """
-    Search merged cml-rainGauge files in given directory for specific column name.
-    Returns list of filenames, which are missing given parameter column.
-    Typical names: 'time', 'SRA10M', 'cml_PrijimanaUroven', 'cml_Uptime', 'cml_Teplota'
 
-    Parameters:
-    parameter_name : str, specific parameter name to be searched
-    path : str, directory to search
-
-    Returns:
-    output_list : list, list of files missing given parameter (column) name
-    """
-
-    # Get the list of all files
-    file_list = os.listdir(path)
-    
-    output_list = []
-
-    for file in file_list:
-        with open(path+file, 'r') as fp:
-            s = fp.read()
-            if parameter_name not in s:
-                output_list.append(file)
-            fp.close()
-
-    return output_list
 
 
 
@@ -111,7 +85,7 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
     if reset_detect:
         cml = cml_reset_detect(cml)
     if suppress_step: 
-        cml = cml_suppress_step(cml,conv_threshold)
+        cml = cml_suppress_step(cml, conv_threshold)
     if std_method:
         cml = cml_suppress_extremes_std(cml, window_size, std_threshold)
     if z_method:
@@ -258,7 +232,7 @@ def cml_reset_detect(cml:pd.DataFrame):
     #stepdown_mask = (cml['uptime_A'].diff() < 0) | (cml['uptime_B'].diff() < 0)
     stepdown_indices = cml.index[stepdown_mask]
 
-    # delete +-5 values around step
+    # (delete +-5 values around step)
     #around_stepdown = np.array([stepdown_indices+(a-5) for a in range(10)]).ravel()
     cml['trsl_A'][stepdown_indices] = np.nan
     cml['trsl_B'][stepdown_indices] = np.nan

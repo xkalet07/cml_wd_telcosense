@@ -65,6 +65,7 @@ import datetime
 
 # Import own modules
 import telcosense_classification.module.cnn_orig as cnn
+from telcosense_classification import data_loading_utility
 from telcosense_classification import preprocess_utility
 from telcosense_classification import cnn_utility
 from telcosense_classification import plot_utility
@@ -72,9 +73,25 @@ from telcosense_classification import plot_utility
 
 """ ConstantVariable definitions """
 
+technology = '1s10'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
+dir = 'TelcoRain/merged_data/'
+path = dir + technology+'/'
 
-technology = '1s10'           # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
-path = 'TelcoRain/merged_data/'+technology+'/'
+# list of all files
+file_list = sorted(os.listdir(path))
+# Check for missing column
+missng_rain = data_loading_utility.find_missing_column('SRA10M', path)
+file_list = sorted(list(set(file_list) - set(missng_rain)))
+
+# Loading metadata
+metadata_all = pd.read_csv('TelcoRain/filtered_radius1.0km_offset1.0_CML.csv')
+metadata_all = metadata_all.drop_duplicates()          # clean duplicative rows
+
+""" Function definitions """
+
+
+""" Main """
+
 
 for k in range(12):
     i = k*2
@@ -85,69 +102,19 @@ for k in range(12):
     # ceragon_ip_10 (4)
     # ceragon_ip_20 (42) - problematic: 2, 10, 14(uptime cons), 28, 34(symetric), 40(step, thr=210) nice: 8,16, overall higher peaks
     # 1s10 (26) - nice:0,2, problematic:4, 12, 14, 16,18,22, 24 overall more extreme peaks
-    """ Function definitions """
-
-
-    """ Main """
 
  
-    ## LOADING DATA
-    # Loading metadata
-
-    # Get the list of all files
-    file_list = sorted(os.listdir(path))
-    # Check for missing column
-    #missng_rain = preprocess_utility.find_missing_column('SRA10M', path)
-    #file_list = sorted(list(set(file_list) - set(missng_rain)))
-
-    metadata_all = pd.read_csv('TelcoRain/filtered_radius1.0km_offset1.0_CML.csv')
-    metadata_all = metadata_all.drop_duplicates()          # clean duplicative rows
-
+    ## LOADING DATA 
+    # metadata
     cml_A_ip = file_list[i][file_list[i].rfind('CML_')+4:-4]
-
     metadata = metadata_all.loc[metadata_all['IP_address_A'] == cml_A_ip]
 
-
-    if (technology=='summit') | (technology=='summit_bt'):
-        cml = pd.read_csv(path+file_list[i], usecols=['time','SRA10M','cml_PrijimanaUroven','cml_Uptime'])   #,,'cml_KvalitaSignalu','cml_Teplota',cml_RxDatovyTok,cml_Uptime
-        cml = cml.rename(columns={'SRA10M':'rain', 
-                                'cml_PrijimanaUroven':'trsl_A',
-                                'cml_Uptime':'uptime_A'})
-        cml[['trsl_B','uptime_B']] = pd.read_csv(path+file_list[i+1], usecols=['cml_PrijimanaUroven','cml_Uptime'])
-    if (technology=='ceragon_ip_10'):
-        cml = pd.read_csv(path+file_list[i], usecols=['time','SRA10M','cml_PrijimanaUroven','cml_Uptime','cml_VysilaciVykon']) 
-        cml = cml.rename(columns={'SRA10M':'rain', 
-                                'cml_PrijimanaUroven':'rsl_A',
-                                'cml_Uptime':'uptime_A',
-                                'cml_VysilaciVykon':'tsl_A'})
-        cml[['rsl_B','uptime_B','tsl_B']] = pd.read_csv(path+file_list[i+1], usecols=['cml_PrijimanaUroven','cml_Uptime','cml_VysilaciVykon'])
-        cml['trsl_A'] = cml.tsl_A - cml.rsl_A
-        cml['trsl_B'] = cml.tsl_B - cml.rsl_B
-    if (technology=='ceragon_ip_20'):
-        cml = pd.read_csv(path+file_list[i], usecols=['time','SRA10M','cml_Signal','cml_Uptime']) 
-        cml = cml.rename(columns={'SRA10M':'rain', 
-                                'cml_Signal':'trsl_A',
-                                'cml_Uptime':'uptime_A'})
-        cml[['trsl_B','uptime_B']] = pd.read_csv(path+file_list[i+1], usecols=['cml_Signal','cml_Uptime'])
-        cml['trsl_A'] = -cml.trsl_A
-        cml['trsl_B'] = -cml.trsl_B
-    if (technology=='1s10'):
-        cml = pd.read_csv(path+file_list[i], usecols=['time','SRA10M','cml_PrijimanaUroven','cml_Uptime']) 
-        cml = cml.rename(columns={'SRA10M':'rain', 
-                                'cml_PrijimanaUroven':'trsl_A',
-                                'cml_Uptime':'uptime_A'})
-        cml[['trsl_B','uptime_B']] = pd.read_csv(path+file_list[i+1], usecols=['cml_PrijimanaUroven','cml_Uptime'])
-        cml['trsl_A'] = -cml.trsl_A
-        cml['trsl_B'] = -cml.trsl_B
-
+    # Loading cml
+    cml = data_loading_utility.load_cml(dir, technology, i)
 
     # make copies for presentation only
     cml['trsl_A_orig'] = cml.trsl_A.copy()
     cml['trsl_B_orig'] = cml.trsl_B.copy()
-
-
-
-
 
 
     ## PREPROCESS
@@ -158,7 +125,7 @@ for k in range(12):
                     reset_detect=True
                     )
 
-    ## WD reference
+    ## WD REFERENCE
     cml = preprocess_utility.ref_preprocess(cml, 
                                             comp_lin_interp=True, upsampled_n_times=20,
                                             supress_single_zeros=True
@@ -166,7 +133,7 @@ for k in range(12):
 
 
     ## PLOT
-    fig, axs = plt.subplots(4,1, figsize=(12, 5))
+    fig, axs = plt.subplots(2,1, figsize=(12, 5))
     #fig.tight_layout(h_pad = 3)
     #cml.plot(ax=axs,subplots=True)                          #x='time', 
     ax1 = axs[0].twinx()
@@ -175,12 +142,14 @@ for k in range(12):
     cml.trsl_A.plot(ax=axs[0])   
     cml.trsl_B.plot(ax=axs[0]) 
     cml.rain.plot(ax=ax1, color='black', linewidth=0.5)
-    cml.uptime_A.plot(ax=axs[1])
+    cml.temp_A.plot(ax=axs[1])
+    cml.temp_B.plot(ax=axs[1])
+    '''cml.uptime_A.plot(ax=axs[1])
     cml.uptime_B.plot(ax=axs[1])
     cml.trsl_A_conv.plot(ax=axs[2])   
     cml.trsl_B_conv.plot(ax=axs[2]) 
     cml.trsl_A_orig.plot(ax=axs[3])   
-    cml.trsl_B_orig.plot(ax=axs[3])
+    cml.trsl_B_orig.plot(ax=axs[3])'''
 
     #axs.set_xlim(cml.rsl_A.values[0], cml.rsl_A.values[-1])
     #from matplotlib.widgets import Cursor
