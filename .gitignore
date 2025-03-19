@@ -32,6 +32,16 @@
 *.xlsx
 *.nc
 
+# Image files #
+##############
+*.pdf
+*.svg
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+
 # OS generated files #
 ######################
 .DS_Store

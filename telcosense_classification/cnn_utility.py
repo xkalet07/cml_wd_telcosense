@@ -22,7 +22,6 @@ import numpy as np
 import itertools
 import matplotlib.pyplot as plt
 
-import xarray as xr
 import pandas as pd
 
 import torch
@@ -37,7 +36,7 @@ import datetime
 
 
 # Import own modules
-import telcosense_classification.module.cnn_orig as cnn
+import telcosense_classification.module.cnn_telcorain_v10 as cnn
 
 """ Variable definitions """
 
@@ -46,31 +45,34 @@ import telcosense_classification.module.cnn_orig as cnn
 
 ## TODO: shuffle train and test data 
 
-def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, batchsize = 20, save_param = False):
+def cnn_train(ds:pd.DataFrame, sample_size:int, batchsize = 20, epochs = 20, resume_epoch = 0, save_param = False):
     """
     Train given cnn modul on given cml dataset over given number of epochs. 
     perform testing for each epoch, save training parameters.
     
     Parameters
-    ds : xarray.dataset containing CML data and reference rain data for training and testing
-    sample_size : int, length of samples for wet/dry classification in minutes
+    ds : pandas.DataFrame containing CML data and reference rain data for training and testing
+    sample_size : int, number of samples per batch
     epochs : int, default = 20, number of training epochs
     resume_epoch : int, default = 0, if training was performed previouslyover xy epochs,
         continue training at epoch xy+1 
-    batchsize : int, default = 20, number of samples in the batch, given to cnn
     save_param: boolean, default = False, save training parameters after training
         
     Returns none
     """
     
-    n_samples = len(ds.sample_num)
-    num_cmls = len(ds.cml_id)
+    n_samples = len(ds) // sample_size
+    cutoff = len(ds) % sample_size
 
-    trsl = ds.trsl_st.values.reshape(num_cmls*n_samples,2 , sample_size)
-    ref = ds.ref_wd.values.reshape(num_cmls*n_samples)
-
+    trsl = np.concatenate((ds.trsl_A.values[:-cutoff], ds.trsl_B.values[:-cutoff])).reshape((-1, 2), order='F')
+    trsl = trsl.reshape(n_samples, sample_size, 2).transpose(0,2,1)
+    #trsl = np.concatenate((ds.trsl_A.values[:-cutoff], ds.trsl_B.values[:-cutoff])).reshape((n_samples, 2, sample_size))
+    
+    ref = ds.ref_wd.values[:-cutoff].reshape((n_samples,sample_size))
+    #ref = ds.ref_wd.values[:-cutoff].reshape()
+           
     k_train = 0.8     # fraction of training data
-    train_size = int(len(trsl)*k_train/batchsize)* batchsize
+    train_size = int(len(trsl)*k_train/batchsize)*batchsize
 
     # Storing as tensors [2]
     train_data = torch.Tensor(trsl[:train_size])
@@ -82,8 +84,8 @@ def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, bat
     dataset = torch.utils.data.TensorDataset(train_data, train_ref)
     testset = torch.utils.data.TensorDataset(test_data, test_ref)
 
-    trainloader = torch.utils.data.DataLoader(dataset, batch_size = batchsize, shuffle = False)    # shuffle the training data, once more? True
-    testloader = torch.utils.data.DataLoader(testset, batch_size = batchsize, shuffle = False)
+    trainloader = torch.utils.data.DataLoader(dataset, batchsize, shuffle = False)   #!!!!!!!!!!!! potential problem: batchsize
+    testloader = torch.utils.data.DataLoader(testset, batchsize, shuffle = False)
 
     model = cnn.cnn_class()
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001)
@@ -103,7 +105,6 @@ def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, bat
         for inputs, targets in tqdm(trainloader):
             optimizer.zero_grad()
             pred = model(inputs)
-            pred = nn.Flatten(0,1)(pred)            # transpose column data into row
             
             # calculating the loss function        
             if ~np.isnan(pred.tolist()).any():            # exclude NaN values for loss calculation
@@ -118,8 +119,7 @@ def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, bat
         with torch.no_grad():
             for inputs, targets in tqdm(testloader):
                 pred = model(inputs)
-                pred = nn.Flatten(0,1)(pred)
-
+                
                 if np.isnan(pred.tolist()).any():            # exclude NaN values for loss calculation
                     targets = targets[~np.isnan(pred.tolist())]
                     pred = pred[~np.isnan(pred.tolist())]
@@ -158,7 +158,7 @@ def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, bat
         torch.save(model.state_dict(), (path+date))
 
 
-
+'''
 
 def cnn_classify(ds:xr.Dataset, sample_size:int, batchsize = 20, param_dir = 'default'):
     """
@@ -213,3 +213,4 @@ def cnn_classify(ds:xr.Dataset, sample_size:int, batchsize = 20, param_dir = 'de
         
     print(total_loss)
     return cnn_output
+'''

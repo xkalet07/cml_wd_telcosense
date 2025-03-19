@@ -256,7 +256,7 @@ def ref_preprocess(cml:pd.DataFrame,
     into zero values after rainy period.
 
     Parameters
-    cml : Pandas.DaraFrame containing cml data and corresponding reference raifall data
+    cml : Pandas.DataFrame containing cml data and corresponding reference raifall data
     supress_single_zeros : bool, default = False, Supress single zeros if True
     comp_lin_interp : bool, default = False, Compensate for nonzero leakage if True
     upsampled_n_times : int, default value = 0, number of times upsampled. Defining 
@@ -270,12 +270,14 @@ def ref_preprocess(cml:pd.DataFrame,
         nonzero_mask1 = cml.rain != 0
         shifted_mask_L = np.roll(nonzero_mask1, -1)
         shifted_mask_L[-1] = False  # Prevent wraparound issues
+        shifted_mask_LL = np.roll(shifted_mask_L, -1)
+        shifted_mask_LL[-1] = False  # Prevent wraparound issues
         shifted_mask_R = np.roll(nonzero_mask1, 1)
         shifted_mask_R[1] = False  # Prevent wraparound issues
         shifted_mask_RR = np.roll(shifted_mask_R, 1)
         shifted_mask_RR[1] = False  # Prevent wraparound issues
 
-        single_zeros = np.where(shifted_mask_L & (shifted_mask_R | shifted_mask_RR) & ~nonzero_mask1)[0]
+        single_zeros = np.where((shifted_mask_L | shifted_mask_LL) & (shifted_mask_R | shifted_mask_RR) & ~nonzero_mask1)[0]
         
         #single_zeros = np.where(np.roll(rain_start,-1) & np.roll(rain_end,1))[0]
         cml.rain[single_zeros] = 0.1
@@ -302,33 +304,44 @@ def ref_preprocess(cml:pd.DataFrame,
 
 
 ## TODO: exclude long dry periods. Make dataset 50:50
-def balance_wd_classes(cml_set:xr.Dataset, ref_set:xr.Dataset, sample_size = 60):
+def balance_wd_classes(cml:pd.DataFrame):
     """
-    undersample wd reference and exclude large dry periods from both rainfall and cml data
+    Exclude large dry periods from both rainfall and cml data to balance wet and dry classes
 
     Parameters
-    cml_set : xarray.dataset containing several CMLs with trsl, tsl, ttrsl, timestamps and metadata
-    ref_set : xarray.dataset containing reference rainrate and wet/dry data for given CMLs
-    sample_size : int, default value = 60 [min], length of samples
-
+    cml: Pandas.DataFrame, containing cml data and reference WD
+   
     Returns
-    cml_set : xarray.dataset containing several CMLs with trsl, tsl, ttrsl, timestamps and metadata
-    ref_set : xarray.dataset containing reference rainrate and wet/dry data for given CMLs
+    cml_balanced: Pandas.DataFrame, containing cml data and reference WD
     """
-    '''def balance_classes(a, boo):
-        """
-        From https://github.com/jpolz/cml_wd_pytorch
-        """
-        boo = boo[0,:]
-        lsn=len(a.sample_num)
-        ind = np.arange(lsn)
-        #ind_true = np.empty((len(a.cml_id),lsn))
-        #ind_false = np.empty((len(a.cml_id),lsn))
-        #for i in range(len(a.cml_id)):
-        ind_true = shuffle(ind[boo])
-        ind_false = ind[~boo]
-        ind_true = ind_true[:np.sum(~boo)]
-        print(1-(2*len(ind_false)/lsn))
-        return a.isel(sample_num=np.concatenate([ind_true,ind_false]))'''
+    # by cgatgpt: https://chatgpt.com/share/67db090d-6430-800a-8964-85c8148182f3
 
+    # Identify contiguous segments of 0s and 1s
+    cml['segment'] = (cml['ref_wd'].diff().ne(0)).cumsum()
 
+    # Measure segment lengths
+    segment_lengths = cml.groupby('segment')['ref_wd'].transform('count')
+
+    # Define parameters
+    max_zero_length = 1000  # Max length of allowed 0 sequences
+    buffer_size = 500        # Keep 500 zeros around long zero segments
+
+    # Find long zero segments
+    long_zero_segments = cml[(cml['ref_wd'] == 0) & (segment_lengths > max_zero_length)]['segment'].unique()
+
+    # Create a mask to keep values
+    keep_mask = cml['ref_wd'] == 1  # Always keep 1s
+
+    for seg in long_zero_segments:
+        seg_indices = cml[cml['segment'] == seg].index  # Get all row indices of this segment
+        
+        # Keep first and last `buffer_size` zeros
+        keep_indices = set(seg_indices[:buffer_size]) | set(seg_indices[-buffer_size:])
+        
+        # Update mask
+        keep_mask.iloc[list(keep_indices)] = True  # Keep surrounding 500 zeros
+
+    # Apply the filter
+    cml_balanced = cml[keep_mask].drop(columns=['segment']).reset_index(drop=True)
+
+    return cml_balanced

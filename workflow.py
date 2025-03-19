@@ -46,25 +46,15 @@ Contact: 211312@vutbr.cz
 """ Imports """
 # Import python libraries
 
-import math
 import numpy as np
-import itertools
 import matplotlib.pyplot as plt
 
 import pandas as pd
 import os
 
-import torch
-import torch.nn as nn
-import sklearn.metrics as skl
-from sklearn.utils import shuffle
-from tqdm import tqdm
-import datetime
-
 # Import external packages
 
 # Import own modules
-import telcosense_classification.module.cnn_orig as cnn
 from telcosense_classification import data_loading_utility
 from telcosense_classification import preprocess_utility
 from telcosense_classification import cnn_utility
@@ -92,86 +82,87 @@ metadata_all = metadata_all.drop_duplicates()          # clean duplicative rows
 
 """ Main """
 
-
-for k in range(12):
-    i = k*2
-    # SUMMIT (0,102)
-    # problematic/weird: 12, 28, 30, 36, 54, 62, 68, 74, 76, 94, 96
-    # nice:  78, ideal showcase:  100, 16,2 
-    # SUMMIT_BT (0,32) - showcase: 12,24,26,28
-    # ceragon_ip_10 (4)
-    # ceragon_ip_20 (42) - problematic: 2, 10, 14(uptime cons), 28, 34(symetric), 40(step, thr=210) nice: 8,16, overall higher peaks
-    # 1s10 (26) - nice:0,2, problematic:4, 12, 14, 16,18,22, 24 overall more extreme peaks
-
- 
-    ## LOADING DATA 
-    # metadata
-    cml_A_ip = file_list[i][file_list[i].rfind('CML_')+4:-4]
-    metadata = metadata_all.loc[metadata_all['IP_address_A'] == cml_A_ip]
-
-    # Loading cml
-    cml = data_loading_utility.load_cml(dir, technology, i)
-
-    # make copies for presentation only
-    cml['trsl_A_orig'] = cml.trsl_A.copy()
-    cml['trsl_B_orig'] = cml.trsl_B.copy()
+i = 0
+# SUMMIT (0,102)
+# problematic/weird: 12, 28, 30, 36, 54, 62, 68, 74, 76, 94, 96
+# nice:  78, ideal showcase:  100, 16,2 
+# SUMMIT_BT (0,32) - showcase: 12,24,26,28
+# ceragon_ip_10 (4)
+# ceragon_ip_20 (42) - problematic: 2, 10, 14(uptime cons), 28, 34(symetric), 40(step, thr=210) nice: 8,16, overall higher peaks
+# 1s10 (26) - nice:0,2, problematic:4, 12, 14, 16,18,22, 24 overall more extreme peaks
 
 
-    ## PREPROCESS
-    cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10, 
-                    suppress_step = True, conv_threshold = 250.0, 
-                    std_method = True, window_size = 10, std_threshold = 5.0, 
-                    z_method = True, z_threshold = 10.0,
-                    reset_detect=True
-                    )
+## LOADING DATA 
+# metadata
+cml_A_ip = file_list[i][file_list[i].rfind('CML_')+4:-4]
+metadata = metadata_all.loc[metadata_all['IP_address_A'] == cml_A_ip]
 
-    ## WD REFERENCE
-    cml = preprocess_utility.ref_preprocess(cml, 
-                                            comp_lin_interp=True, upsampled_n_times=20,
-                                            supress_single_zeros=True
-                                            )
+# Loading cml
+cml = data_loading_utility.load_cml(dir, technology, i)
+
+# make copies for presentation only
+cml['trsl_A_orig'] = cml.trsl_A.copy()
+cml['trsl_B_orig'] = cml.trsl_B.copy()
 
 
-    ## PLOT
-    fig, axs = plt.subplots(2,1, figsize=(12, 5))
-    #fig.tight_layout(h_pad = 3)
-    #cml.plot(ax=axs,subplots=True)                          #x='time', 
-    ax1 = axs[0].twinx()
-    axs[0].set_title((cml_A_ip + ', ' + str(i)))
+## PREPROCESS
+cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10, 
+                suppress_step = True, conv_threshold = 250.0, 
+                std_method = True, window_size = 10, std_threshold = 5.0, 
+                z_method = True, z_threshold = 10.0,
+                reset_detect=True
+                )
 
-    cml.trsl_A.plot(ax=axs[0])   
-    cml.trsl_B.plot(ax=axs[0]) 
-    cml.rain.plot(ax=ax1, color='black', linewidth=0.5)
-    cml.temp_A.plot(ax=axs[1])
-    cml.temp_B.plot(ax=axs[1])
-    '''cml.uptime_A.plot(ax=axs[1])
-    cml.uptime_B.plot(ax=axs[1])
-    cml.trsl_A_conv.plot(ax=axs[2])   
-    cml.trsl_B_conv.plot(ax=axs[2]) 
-    cml.trsl_A_orig.plot(ax=axs[3])   
-    cml.trsl_B_orig.plot(ax=axs[3])'''
-
-    #axs.set_xlim(cml.rsl_A.values[0], cml.rsl_A.values[-1])
-    #from matplotlib.widgets import Cursor
-    #cursor = Cursor(ax=axs[1], useblit=True, color='red', linewidth=2)
-
-    ref_wet_start = np.roll(cml.ref_wd, -1) & ~cml.ref_wd
-    ref_wet_end = np.roll(cml.ref_wd, 1) & ~cml.ref_wd
-    for start_i, end_i in zip(
-        ref_wet_start.values.nonzero()[0],
-        ref_wet_end.values.nonzero()[0],
-    ):
-        axs[0].axvspan(start_i, end_i, color='b', alpha=0.2, linewidth=0) 
+## WD REFERENCE
+cml = preprocess_utility.ref_preprocess(cml, 
+                                        comp_lin_interp=True, upsampled_n_times=20,
+                                        supress_single_zeros=True
+                                        )
 
 
+## CLASS BALANCE
+cml = preprocess_utility.balance_wd_classes(cml)
 
-    plt.show()
+## PLOT
+fig, axs = plt.subplots(2,1, figsize=(12, 5))
+#fig.tight_layout(h_pad = 3)
+#cml.plot(ax=axs,subplots=True)                          #x='time', 
+ax1 = axs[0].twinx()
+axs[0].set_title((cml_A_ip + ', ' + str(i)))
+
+cml.trsl_A.plot(ax=axs[0])   
+cml.trsl_B.plot(ax=axs[0]) 
+cml.rain.plot(ax=ax1, color='black', linewidth=0.5)
+cml.temp_A.plot(ax=axs[1])
+cml.temp_B.plot(ax=axs[1])
+'''cml.uptime_A.plot(ax=axs[1])
+cml.uptime_B.plot(ax=axs[1])
+cml.trsl_A_conv.plot(ax=axs[2])   
+cml.trsl_B_conv.plot(ax=axs[2]) 
+cml.trsl_A_orig.plot(ax=axs[3])   
+cml.trsl_B_orig.plot(ax=axs[3])'''
+
+#axs.set_xlim(cml.rsl_A.values[0], cml.rsl_A.values[-1])
+#from matplotlib.widgets import Cursor
+#cursor = Cursor(ax=axs[1], useblit=True, color='red', linewidth=2)
+
+ref_wet_start = np.roll(cml.ref_wd, -1) & ~cml.ref_wd
+ref_wet_end = np.roll(cml.ref_wd, 1) & ~cml.ref_wd
+for start_i, end_i in zip(
+    ref_wet_start.values.nonzero()[0],
+    ref_wet_end.values.nonzero()[0],
+):
+    axs[0].axvspan(start_i, end_i, color='b', alpha=0.2, linewidth=0) 
 
 
+
+plt.show()
 
 
 
 ## TRAINING
+
+cnn_utility.cnn_train(cml, sample_size=100, epochs = 100, resume_epoch = 0, save_param = False)
 
 ## CLASSIFICATION
 
