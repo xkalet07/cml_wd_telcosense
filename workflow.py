@@ -147,12 +147,25 @@ plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'mean', 'post', 'm
 cml = preprocess_utility.balance_wd_classes(cml)
 
 ## PLOT
-plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
+#plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
 
 
 ## TRAINING
 # TODO: batchsize
-cnn_utility.cnn_train(cml, sample_size=100, epochs = 300, resume_epoch = 0, save_param = False)
+cnn_utility.cnn_train(cml, 
+              num_channels = 2,
+              sample_size = 100, 
+              batchsize = 20, 
+              epochs = 100, 
+              resume_epoch = 0, 
+              learning_rate = 0.0001, 
+              dropout_rate = 0.1,
+              kernel_size = 3,
+              save_param = False
+              )
+
+
+
 
 ## CLASSIFICATION
 

@@ -45,17 +45,32 @@ import telcosense_classification.module.cnn_telcorain_v10 as cnn
 
 ## TODO: shuffle train and test data 
 
-def cnn_train(ds:pd.DataFrame, sample_size:int, batchsize = 20, epochs = 20, resume_epoch = 0, save_param = False):
+def cnn_train(ds:pd.DataFrame, 
+              num_channels = 2,
+              sample_size = 100, 
+              batchsize = 20, 
+              epochs = 20, 
+              resume_epoch = 0, 
+              learning_rate = 0.01, 
+              dropout_rate = 0.1,
+              kernel_size = 3,
+              save_param = False
+              ):
     """
     Train given cnn modul on given cml dataset over given number of epochs. 
     perform testing for each epoch, save training parameters.
     
     Parameters
     ds : pandas.DataFrame containing CML data and reference rain data for training and testing
-    sample_size : int, number of samples per batch
+    num_channels : int, default = 2, number of variables for cnn to classify from (2*trsl, 2*temperature)
+    samplesize : int, default = 100, number of values to be grouped in a sample
+    batchsize : int, default = 20, number of samples per batch, to be feed into cnn at once
     epochs : int, default = 20, number of training epochs
     resume_epoch : int, default = 0, if training was performed previouslyover xy epochs,
         continue training at epoch xy+1 
+    learning_rate : float, default = 0.01, cnn's optimizer learning rate
+    dropout_rate : float, default = 0.1
+    kernel_size : int, default = 3
     save_param: boolean, default = False, save training parameters after training
         
     Returns none
@@ -87,8 +102,14 @@ def cnn_train(ds:pd.DataFrame, sample_size:int, batchsize = 20, epochs = 20, res
     trainloader = torch.utils.data.DataLoader(dataset, batchsize, shuffle = False)   #!!!!!!!!!!!! potential problem: batchsize
     testloader = torch.utils.data.DataLoader(testset, batchsize, shuffle = False)
 
-    model = cnn.cnn_class()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001)
+    model = cnn.cnn_class(channels=num_channels, 
+                          sample_size=sample_size, 
+                          kernel_size=kernel_size, 
+                          dropout = dropout_rate, 
+                          n_fc_neurons = 64, 
+                          n_filters = [24, 48, 48, 96, 192]
+                          )
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
     # if resuming training
     if resume_epoch == 0:

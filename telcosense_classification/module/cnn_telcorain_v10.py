@@ -42,9 +42,10 @@ class ConvBlock(nn.Module):
         return x
 
 class cnn_class(nn.Module):
-    def __init__(self, kernel_size = 3, dropout = 0.2, n_fc_neurons = 64, n_filters = [24, 48, 48, 96, 192],):
+    def __init__(self, channels = 2, sample_size = 100, kernel_size = 3, dropout = 0.2, n_fc_neurons = 64, n_filters = [24, 48, 48, 96, 192]):
         super().__init__()
-        self.channels = 2                      # 2 input cml channels TODO: make 4 for cml temperature
+        self.channels = channels
+        self.sample_size = sample_size
         self.kernelsize = kernel_size
         self.dropout = dropout
         self.n_fc_neurons = n_fc_neurons
@@ -55,19 +56,19 @@ class cnn_class(nn.Module):
         self.cb1 = ConvBlock(self.kernelsize, self.channels, self.n_filters[0], self.n_filters[0])      # 2 input channels, 24 filters of size 3
         self.cb2 = ConvBlock(self.kernelsize, self.n_filters[0], self.n_filters[1], self.n_filters[1])  # 24 input filters, 48 output filters
         self.cb3 = ConvBlock(self.kernelsize, self.n_filters[1], self.n_filters[2], self.n_filters[2])  # 48 in, 48 out
-        #self.conv4 = nn.Conv1d(n_filters[2],n_filters[3],kernel_size,padding='same')
-        self.conv5a = nn.Conv1d(n_filters[2],n_filters[4],kernel_size,padding='same')
+        self.conv4 = nn.Conv1d(n_filters[2],n_filters[3],kernel_size,padding='same')
+        self.conv5a = nn.Conv1d(n_filters[3],n_filters[4],kernel_size,padding='same')
         self.conv5b = nn.Conv1d(n_filters[4],n_filters[4],kernel_size,padding='same')
         self.act = nn.ReLU()                                                                            # Activation function: ReLU, after each convolution
 
         ### Fully Connected part 
         # no pooling implemented: no need
         # neuron layers interlieved with dropout functions
-        self.dense1 = nn.Linear(n_filters[4],n_fc_neurons)
-        self.drop1 = nn.Dropout(p=dropout)
-        self.dense2 = nn.Linear(n_fc_neurons, n_fc_neurons)
-        self.drop2 = nn.Dropout(dropout)
-        self.denseOut = nn.Linear(n_fc_neurons, 100)                     # single 1D vector on the output
+        self.dense1 = nn.Linear(self.n_filters[4], self.n_fc_neurons)
+        self.drop1 = nn.Dropout(self.dropout)
+        self.dense2 = nn.Linear(self.n_fc_neurons, self.n_fc_neurons)
+        self.drop2 = nn.Dropout(self.dropout)
+        self.denseOut = nn.Linear(self.n_fc_neurons, self.sample_size)
         self.final_act = nn.Sigmoid()                                  # Sigmoid function to diverse values further to 1/0
 
     
@@ -76,7 +77,7 @@ class cnn_class(nn.Module):
         x = self.cb1(x)
         x = self.cb2(x)
         x = self.cb3(x)
-        #x = self.act(self.conv4(x))
+        x = self.act(self.conv4(x))
         x = self.act(self.conv5a(x))
         x = self.act(self.conv5b(x))
         x = torch.mean(x,dim=-1)
