@@ -91,6 +91,14 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
     if z_method:
         cml = cml_suppress_extremes_z(cml, z_threshold)
 
+    # subtract median
+    cml['med_A'] = cml.trsl_A.rolling(window=10000, center=True).median()
+    cml['med_B'] = cml.trsl_B.rolling(window=10000, center=True).median()
+
+    cml = cml.interpolate(axis=0, method='linear', limit_direction='both')
+
+    cml['trsl_A'] = cml.trsl_A - cml.med_A
+    cml['trsl_B'] = cml.trsl_B - cml.med_B
 
     # standardisation
     for trsl in ['trsl_A', 'trsl_B']:
@@ -190,7 +198,7 @@ def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 20.0):
         conv = np.abs(np.convolve(cml[trsl], step, mode='valid'))
         conv = np.append(np.append(np.zeros(500),conv),np.zeros(499))
         
-        cml[trsl+'_conv'] = conv
+        #cml[trsl+'_conv'] = conv
 
         convDF = pd.DataFrame(conv, columns=['conv'])
 
@@ -303,7 +311,7 @@ def ref_preprocess(cml:pd.DataFrame,
     return cml
 
 
-## TODO: exclude long dry periods. Make dataset 50:50
+
 def balance_wd_classes(cml:pd.DataFrame):
     """
     Exclude large dry periods from both rainfall and cml data to balance wet and dry classes
@@ -316,21 +324,20 @@ def balance_wd_classes(cml:pd.DataFrame):
     """
     # by cgatgpt: https://chatgpt.com/share/67db090d-6430-800a-8964-85c8148182f3
 
-    # Identify contiguous segments of 0s and 1s
+    # Mark contiguous segments of 0s and 1s
     cml['segment'] = (cml['ref_wd'].diff().ne(0)).cumsum()
 
-    # Measure segment lengths
     segment_lengths = cml.groupby('segment')['ref_wd'].transform('count')
 
-    # Define parameters
-    max_zero_length = 1000  # Max length of allowed 0 sequences
-    buffer_size = 500        # Keep 500 zeros around long zero segments
+    max_zero_length = 500  # Max length of allowed 0 sequences
+    buffer_size = 200       # Keep 500 zeros around long zero segments
 
     # Find long zero segments
     long_zero_segments = cml[(cml['ref_wd'] == 0) & (segment_lengths > max_zero_length)]['segment'].unique()
 
     # Create a mask to keep values
-    keep_mask = cml['ref_wd'] == 1  # Always keep 1s
+    #keep_mask = (cml['ref_wd'] == 1)    # Always keep 1s
+    keep_mask = np.ones(len(cml), dtype=bool)
 
     for seg in long_zero_segments:
         seg_indices = cml[cml['segment'] == seg].index  # Get all row indices of this segment
@@ -339,7 +346,9 @@ def balance_wd_classes(cml:pd.DataFrame):
         keep_indices = set(seg_indices[:buffer_size]) | set(seg_indices[-buffer_size:])
         
         # Update mask
-        keep_mask.iloc[list(keep_indices)] = True  # Keep surrounding 500 zeros
+        middle_indices = set(seg_indices) - keep_indices
+        #keep_mask.iloc[list(keep_indices)] = True  # Keep surrounding 500 zeros
+        keep_mask[list(middle_indices)] = False  # Exclude only the middle part
 
     # Apply the filter
     cml_balanced = cml[keep_mask].drop(columns=['segment']).reset_index(drop=True)

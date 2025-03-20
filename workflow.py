@@ -120,49 +120,39 @@ cml = preprocess_utility.ref_preprocess(cml,
                                         )
 
 
+#plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
+
+"""
+cml['mean_A'] = cml.trsl_A.rolling(window=10000, center=True).mean()
+cml['mean_B'] = cml.trsl_B.rolling(window=10000, center=True).mean()
+
+cml['post_A'] = cml.trsl_A - cml.mean_A
+cml['post_B'] = cml.trsl_B - cml.mean_B
+
+cml['med_A'] = cml.trsl_A.rolling(window=10000, center=True).median()
+cml['med_B'] = cml.trsl_B.rolling(window=10000, center=True).median()
+
+cml['postx_A'] = cml.trsl_A - cml.med_A
+cml['postx_B'] = cml.trsl_B - cml.med_B
+
+plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'mean', 'post', 'med', 'postx'])
+"""
+
+
+
+
+
+
 ## CLASS BALANCE
 cml = preprocess_utility.balance_wd_classes(cml)
 
 ## PLOT
-fig, axs = plt.subplots(2,1, figsize=(12, 5))
-#fig.tight_layout(h_pad = 3)
-#cml.plot(ax=axs,subplots=True)                          #x='time', 
-ax1 = axs[0].twinx()
-axs[0].set_title((cml_A_ip + ', ' + str(i)))
-
-cml.trsl_A.plot(ax=axs[0])   
-cml.trsl_B.plot(ax=axs[0]) 
-cml.rain.plot(ax=ax1, color='black', linewidth=0.5)
-cml.temp_A.plot(ax=axs[1])
-cml.temp_B.plot(ax=axs[1])
-'''cml.uptime_A.plot(ax=axs[1])
-cml.uptime_B.plot(ax=axs[1])
-cml.trsl_A_conv.plot(ax=axs[2])   
-cml.trsl_B_conv.plot(ax=axs[2]) 
-cml.trsl_A_orig.plot(ax=axs[3])   
-cml.trsl_B_orig.plot(ax=axs[3])'''
-
-#axs.set_xlim(cml.rsl_A.values[0], cml.rsl_A.values[-1])
-#from matplotlib.widgets import Cursor
-#cursor = Cursor(ax=axs[1], useblit=True, color='red', linewidth=2)
-
-ref_wet_start = np.roll(cml.ref_wd, -1) & ~cml.ref_wd
-ref_wet_end = np.roll(cml.ref_wd, 1) & ~cml.ref_wd
-for start_i, end_i in zip(
-    ref_wet_start.values.nonzero()[0],
-    ref_wet_end.values.nonzero()[0],
-):
-    axs[0].axvspan(start_i, end_i, color='b', alpha=0.2, linewidth=0) 
-
-
-
-plt.show()
-
+plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
 
 
 ## TRAINING
-
-cnn_utility.cnn_train(cml, sample_size=100, epochs = 100, resume_epoch = 0, save_param = False)
+# TODO: batchsize
+cnn_utility.cnn_train(cml, sample_size=100, epochs = 300, resume_epoch = 0, save_param = False)
 
 ## CLASSIFICATION
 

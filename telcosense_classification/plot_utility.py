@@ -20,6 +20,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import xarray as xr
+import pandas as pd
 
 # Import external packages
 
@@ -30,6 +31,53 @@ import xarray as xr
 
 
 """ Function definitions """
+
+
+
+def plot_cml(cml:pd.DataFrame, columns = ['rain', 'ref_wd', 'trsl']):
+    """
+    plot selected columns from cml dataframe
+
+    Parameters
+    cml : pandas.DataFrame, containing one CML with trsl, reference rain, reference WD flag,
+        timestamps, temperature, uptime etc
+    columns : list of strings, desired cml variables (columns) to be plotted.
+        example: 'rain', 'ref_wd', 'trsl', 'uptime', 'temp', 'rsl', 'tsl'... 
+        default: 'rain', 'ref_wd', 'trsl'
+
+    Returns: none
+    """
+    
+    if 'rain' in columns:
+        rain = True
+        columns.remove('rain')
+    if 'ref_wd' in columns:
+        ref = True
+        ref_wet_start = np.roll(cml.ref_wd, -1) & ~cml.ref_wd
+        ref_wet_end = np.roll(cml.ref_wd, 1) & ~cml.ref_wd
+        columns.remove('ref_wd')
+       
+    fig, axs = plt.subplots(len(columns),1, figsize=(12, 2*len(columns)))
+    #ax1 = axs[0].twinx()
+    axs[0].set_title('ip goes here')  #(cml_A_ip + ', ' + str(i)))
+
+    for i in range(len(columns)):
+        cml[columns[i]+'_A'].plot(ax=axs[i])   
+        cml[columns[i]+'_B'].plot(ax=axs[i])
+
+        # plot ref_wd
+        if ref:
+            for start_i, end_i in zip(
+                ref_wet_start.values.nonzero()[0],
+                ref_wet_end.values.nonzero()[0],
+            ):
+                axs[i].axvspan(start_i, end_i, color='b', alpha=0.2, linewidth=0) 
+        if rain:
+            ax1 = axs[i].twinx()
+            cml.rain.plot(ax=ax1, color='black', linewidth=0.5)
+
+    plt.show()
+
 
 def plot_cnn_output(ds:xr.Dataset, cnn_wd_threshold = 0.5):
     """
