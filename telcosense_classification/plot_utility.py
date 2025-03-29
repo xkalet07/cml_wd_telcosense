@@ -79,18 +79,67 @@ def plot_cml(cml:pd.DataFrame, columns = ['rain', 'ref_wd', 'trsl']):
     plt.show()
 
 
-def plot_cnn_output(ds:xr.Dataset, cnn_wd_threshold = 0.5):
+
+def plot_cnn_classification(cml:pd.DataFrame, cnn_wd_threshold = 0.5):
     """
-    plot wet/dry classification output of CNN
+    plot output of the CNN classification, shade TP, FP, FN periods with colors,
 
     Parameters
-    ds : xarray.dataset containing several CMLs with trsl, reference data,
-        timestamps, metadata, cnn prediction output, TP, FP, FN periods
-    cnn_wd_threshold : float, default = 0.5, classification threshold 
-        to determine boolean wet/dry flag from cnn 0-1 output
-
+    cml : pandas.DataFrame, containing one CML with trsl, reference rain, reference WD flag,
+        timestamps, temperature, uptime and CNN output
+    
     Returns: none
     """
+    # predicted true wet
+    cml['true_wet'] = cml.cnn_wd & cml.ref_wd 
+    # cnn false alarm
+    cml['false_alarm'] = cml.cnn_wd & ~cml.ref_wd
+    # cnn missed wet
+    cml['missed_wet'] = ~cml.cnn_wd & cml.ref_wd
+
+
+    fig, axs = plt.subplots(1,1, figsize=(12, 3))
+    #ax1 = axs[0].twinx()
+    axs.set_title('ip goes here')  #(cml_A_ip + ', ' + str(i)))
+
+    cml['trsl_A'].plot(ax=axs)   
+    cml['trsl_B'].plot(ax=axs)
+    cml['cnn_out'].plot(ax=axs, color='black', linewidth=0.5)
+    axs.axhline(cnn_wd_threshold, color='black', linestyle='--', lw=0.5)
+
+    # GREEN: plot true cnn predicted wet/dry areas
+    start = np.roll(cml.true_wet, -1) & ~cml.true_wet
+    end = np.roll(cml.true_wet, 1) & ~cml.true_wet
+    for start_i, end_i in zip(
+        start.values.nonzero()[0],
+        end.values.nonzero()[0],
+    ):
+        axs.axvspan(start_i, end_i, color='g', alpha=0.2, linewidth=0)
+
+    # RED: plot false alarms
+    start = np.roll(cml.false_alarm, -1) & ~cml.false_alarm
+    end = np.roll(cml.false_alarm, 1) & ~cml.false_alarm
+    for start_i, end_i in zip(
+        start.values.nonzero()[0],
+        end.values.nonzero()[0],
+    ):
+        axs.axvspan(start_i, end_i, color='r', alpha=0.2, linewidth=0)
+
+    # ORANGE: missed wet periods
+    start = np.roll(cml.missed_wet, -1) & ~cml.missed_wet
+    end = np.roll(cml.missed_wet, 1) & ~cml.missed_wet
+    for start_i, end_i in zip(
+        start.values.nonzero()[0],
+        end.values.nonzero()[0],
+    ):
+        axs.axvspan(start_i, end_i, color='orange', alpha=0.2, linewidth=0)
+
+
+
+
+
+
+    '''
     num_cmls = len(ds.cml_id)
     n_samples = len(ds.sample_num)
 
@@ -140,7 +189,7 @@ def plot_cnn_output(ds:xr.Dataset, cnn_wd_threshold = 0.5):
     plt.show()
 
 
-
+'''
 
 
 # # select one cml:

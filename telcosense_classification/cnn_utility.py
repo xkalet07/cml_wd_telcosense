@@ -36,7 +36,7 @@ import datetime
 
 
 # Import own modules
-import telcosense_classification.module.cnn_telcorain_v10 as cnn
+import telcosense_classification.module.cnn_telcorain_v11 as cnn
 
 """ Variable definitions """
 
@@ -79,10 +79,19 @@ def cnn_train(ds:pd.DataFrame,
     n_samples = len(ds) // sample_size
     cutoff = len(ds) % sample_size
 
-    trsl = np.concatenate((ds.trsl_A.values[:-cutoff], ds.trsl_B.values[:-cutoff])).reshape((-1, 2), order='F')
-    trsl = trsl.reshape(n_samples, sample_size, 2).transpose(0,2,1)
-    #trsl = np.concatenate((ds.trsl_A.values[:-cutoff], ds.trsl_B.values[:-cutoff])).reshape((n_samples, 2, sample_size))
+    if num_channels == 2:
+        trsl = np.concatenate((ds.trsl_A.values[:-cutoff], ds.trsl_B.values[:-cutoff])).reshape((-1, num_channels), order='F')
+        trsl = trsl.reshape(n_samples, sample_size, num_channels).transpose(0,2,1)
+        #trsl = np.concatenate((ds.trsl_A.values[:-cutoff], ds.trsl_B.values[:-cutoff])).reshape((n_samples, 2, sample_size))
+    elif num_channels == 4:
+        trsl = np.concatenate((ds.trsl_A.values[:-cutoff], 
+                               ds.trsl_B.values[:-cutoff],
+                               ds.temp_A.values[:-cutoff],
+                               ds.temp_B.values[:-cutoff])
+                               ).reshape((-1, num_channels), order='F')
+        trsl = trsl.reshape(n_samples, sample_size, num_channels).transpose(0,2,1)
     
+
     ref = ds.ref_wd.values[:-cutoff].reshape((n_samples,sample_size))
     #ref = ds.ref_wd.values[:-cutoff].reshape()
            
@@ -106,8 +115,8 @@ def cnn_train(ds:pd.DataFrame,
                           sample_size=sample_size, 
                           kernel_size=kernel_size, 
                           dropout = dropout_rate, 
-                          n_fc_neurons = 64, 
-                          n_filters = [24, 48, 48, 96, 192]
+                          n_fc_neurons = 64,                    # 64
+                          n_filters = [16, 32, 64, 128]
                           )
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
@@ -120,16 +129,20 @@ def cnn_train(ds:pd.DataFrame,
             loss_dict[key]['loss'] = []
 
     # training loop
+    cnn_prediction = []
     for epoch in range(resume_epoch, epochs):
         # training
         train_losses = []
         for inputs, targets in tqdm(trainloader):
             optimizer.zero_grad()
             pred = model(inputs)
+
+            # getting the output
+            if epoch == epochs-1: cnn_prediction = cnn_prediction+pred.tolist()
             
             # calculating the loss function        
-            if ~np.isnan(pred.tolist()).any():            # exclude NaN values for loss calculation
-                loss = nn.BCELoss()(pred, targets)
+            if ~np.isnan(pred.tolist()).any():              # exclude NaN values for loss calculation
+                loss = nn.BCELoss()(pred, targets)          # BCE = binary cross entropy
                 loss.backward()
             optimizer.step()
             train_losses.append(loss.detach().numpy())
@@ -140,6 +153,9 @@ def cnn_train(ds:pd.DataFrame,
         with torch.no_grad():
             for inputs, targets in tqdm(testloader):
                 pred = model(inputs)
+
+                # getting the output
+                if epoch == epochs-1: cnn_prediction = cnn_prediction+pred.tolist()
                 
                 if np.isnan(pred.tolist()).any():            # exclude NaN values for loss calculation
                     targets = targets[~np.isnan(pred.tolist())]
@@ -178,6 +194,8 @@ def cnn_train(ds:pd.DataFrame,
         date = datetime.datetime.now().strftime('%Y-%m-%d_%H;%M')
         torch.save(model.state_dict(), (path+date))
 
+    cnn_out = np.append(np.array(cnn_prediction).reshape(-1), np.zeros(cutoff))
+    return cnn_out
 
 '''
 

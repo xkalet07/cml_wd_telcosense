@@ -37,20 +37,34 @@ Contact: 211312@vutbr.cz
 # TODO: spikes remaining around step after supressing the step in preprocessing (especially 1s10)
 # tip: all datetime is in UTC time
 # TODO: Different preprocess tresholds for different cml technologies
-# TODO: period of trsl == reference wet/dry. Meaning, for each trsl point there will be wet/dry flag predicted.  
+# DONE: period of trsl == reference wet/dry. Meaning, for each trsl point there will be wet/dry flag predicted.  
 # TODO: Forward and backward memory implementation will be needed.  
 # TODO: This approach should bring better learning performance. For longer wet/dry periods there are ocasions, where the period is wet, but trsl shows rain pattern for only fraction of the period.  
-
+# TODO: problem with ceragon_ip_10
+# TODO: implement pooling, we need shorttinme-longtime pattern reckognition
 
 
 """ Imports """
 # Import python libraries
 
+import math
 import numpy as np
+import pandas as pd
+import xarray as xr
+import itertools
 import matplotlib.pyplot as plt
 
-import pandas as pd
+import datetime
 import os
+
+import torch
+import torch.nn as nn
+from tqdm import tqdm
+
+
+
+
+
 
 # Import external packages
 
@@ -61,35 +75,50 @@ from telcosense_classification import cnn_utility
 from telcosense_classification import plot_utility
 
 
-""" ConstantVariable definitions """
+""" Constant Variable definitions """
 
-technology = '1s10'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
+technology = 'summit'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
 dir = 'TelcoRain/merged_data/'
-path = dir + technology+'/'
+i = 0
+# SUMMIT (0,102)    # problematic/weird: 6, 12, 28, 30, 36, 54, 62, 68, 74, 76, 94, 96     # nice:  78, ideal showcase:  100, 16,2 
+# SUMMIT_BT (0,32)  # showcase: 12,24,26,28
+# ceragon_ip_10 (4) # doesnt work so far
+# ceragon_ip_20 (42)# problematic: 2, 10, 14(uptime cons), 28, 34(symetric), 40(step, thr=210) nice: 8,16, overall higher peaks
+# 1s10 (26)         # nice:0,2, problematic:4, 12, 14, 16,18,22, 24 overall more extreme peaks
 
-# list of all files
-file_list = sorted(os.listdir(path))
-# Check for missing column
-missng_rain = data_loading_utility.find_missing_column('SRA10M', path)
-file_list = sorted(list(set(file_list) - set(missng_rain)))
+# Training CNN parameters
+num_channels = 2
+sample_size = 60            # 60 keep lower than FC num of neurons
+batchsize = 128             # 128 most smooth (64)
+epochs = 50                 # 50
+resume_epoch = 0 
+learning_rate = 0.001      # 0.001
+dropout_rate = 0.04         # 0.04 train loss: 0.5158175 test loss: 0.43611026
+kernel_size = 3
+save_param = False
 
-# Loading metadata
-metadata_all = pd.read_csv('TelcoRain/filtered_radius1.0km_offset1.0_CML.csv')
-metadata_all = metadata_all.drop_duplicates()          # clean duplicative rows
+'''
+train loss: 0.5158175 
+test loss: 0.43611026
+'''
+
 
 """ Function definitions """
 
 
 """ Main """
+path = dir + technology+'/'
 
-i = 0
-# SUMMIT (0,102)
-# problematic/weird: 12, 28, 30, 36, 54, 62, 68, 74, 76, 94, 96
-# nice:  78, ideal showcase:  100, 16,2 
-# SUMMIT_BT (0,32) - showcase: 12,24,26,28
-# ceragon_ip_10 (4)
-# ceragon_ip_20 (42) - problematic: 2, 10, 14(uptime cons), 28, 34(symetric), 40(step, thr=210) nice: 8,16, overall higher peaks
-# 1s10 (26) - nice:0,2, problematic:4, 12, 14, 16,18,22, 24 overall more extreme peaks
+# list of all files
+file_list = sorted(os.listdir(path))
+# Check for missing column, WARNING: long execution
+# missng_rain = data_loading_utility.find_missing_column('SRA10M', path)
+# file_list = sorted(list(set(file_list) - set(missng_rain)))
+
+# Loading metadata
+metadata_all = pd.read_csv('TelcoRain/filtered_radius1.0km_offset1.0_CML.csv')
+metadata_all = metadata_all.drop_duplicates()          # clean duplicative rows
+
 
 
 ## LOADING DATA 
@@ -101,8 +130,8 @@ metadata = metadata_all.loc[metadata_all['IP_address_A'] == cml_A_ip]
 cml = data_loading_utility.load_cml(dir, technology, i)
 
 # make copies for presentation only
-cml['trsl_A_orig'] = cml.trsl_A.copy()
-cml['trsl_B_orig'] = cml.trsl_B.copy()
+#cml['trsl_A_orig'] = cml.trsl_A.copy()
+#cml['trsl_B_orig'] = cml.trsl_B.copy()
 
 
 ## PREPROCESS
@@ -120,27 +149,11 @@ cml = preprocess_utility.ref_preprocess(cml,
                                         )
 
 
+
+
+
+
 #plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
-
-"""
-cml['mean_A'] = cml.trsl_A.rolling(window=10000, center=True).mean()
-cml['mean_B'] = cml.trsl_B.rolling(window=10000, center=True).mean()
-
-cml['post_A'] = cml.trsl_A - cml.mean_A
-cml['post_B'] = cml.trsl_B - cml.mean_B
-
-cml['med_A'] = cml.trsl_A.rolling(window=10000, center=True).median()
-cml['med_B'] = cml.trsl_B.rolling(window=10000, center=True).median()
-
-cml['postx_A'] = cml.trsl_A - cml.med_A
-cml['postx_B'] = cml.trsl_B - cml.med_B
-
-plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'mean', 'post', 'med', 'postx'])
-"""
-
-
-
-
 
 
 ## CLASS BALANCE
@@ -151,23 +164,40 @@ cml = preprocess_utility.balance_wd_classes(cml)
 
 
 ## TRAINING
-# TODO: batchsize
-cnn_utility.cnn_train(cml, 
-              num_channels = 2,
-              sample_size = 100, 
-              batchsize = 20, 
-              epochs = 100, 
-              resume_epoch = 0, 
-              learning_rate = 0.0001, 
-              dropout_rate = 0.1,
-              kernel_size = 3,
-              save_param = False
-              )
+cml['cnn_out'] = cnn_utility.cnn_train(cml, 
+                                        num_channels,
+                                        sample_size, 
+                                        batchsize, 
+                                        epochs, 
+                                        resume_epoch, 
+                                        learning_rate, 
+                                        dropout_rate,
+                                        kernel_size,
+                                        save_param
+                                        )
 
 
+## CNN output
+cnn_wd_threshold = 0.5
+
+cml['cnn_wd'] = cml.cnn_out > cnn_wd_threshold
+
+# predicted true wet
+cml['true_wet'] = cml.cnn_wd & cml.ref_wd 
+# cnn false alarm
+cml['false_alarm'] = cml.cnn_wd & ~cml.ref_wd
+# cnn missed wet
+cml['missed_wet'] = ~cml.cnn_wd & cml.ref_wd
+
+print('TP: ' + str(sum(cml.true_wet)/sum(cml.ref_wd)))
+print('FP: ' + str(sum(cml.false_alarm)/sum(cml.ref_wd)))
+print('FN: ' + str(sum(cml.missed_wet)/sum(cml.ref_wd)))
+
+
+## PLOT
+plot_utility.plot_cnn_classification(cml, cnn_wd_threshold)
 
 
 ## CLASSIFICATION
-
 
 input('press enter to continue')

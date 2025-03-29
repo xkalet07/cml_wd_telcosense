@@ -18,12 +18,10 @@ Contact: 211312@vutbr.cz
 
 import math
 import numpy as np
-import xarray as xr
 import pandas as pd
 import os
 
 from scipy.signal import find_peaks
-from sklearn.utils import shuffle
 # Import external packages
 
 
@@ -43,7 +41,8 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
                    suppress_step = False, conv_threshold = 20.0, 
                    std_method = False, window_size = 10, std_threshold = 5.0, 
                    z_method = False, z_threshold = 10.0,
-                   reset_detect = True
+                   reset_detect = True,
+                   temp_extremes = True
                    ):
     """
     Preprocess cml dataset: Interpolate gaps, Exclude NaN values,
@@ -52,6 +51,7 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
         Remove fault extreme values in trsl series using STD or Z method,
         Detect steps in trsl mean value and alighn periods with extremely different mean value,
         Detect cml reset using uptime
+        Suppres fault extreme values and non-smooth value steps in cml temperature
         
     Parameters
     cml : Pandas.DataFrame, containing two aligned adjacent CMLs and rainrate reference with timestamps.
@@ -67,7 +67,8 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
     z_threshold : float, default = 10.0, threshold for extreme value detection using Z method.
         Adjust this based on fluctuations of your data
     reset_detect : boolean, default = True, perform trsl reset detection if True.
-    
+    temp_extremes : boolean, default = True, perform temperature smoothing if True.
+
     Returns
     cml : Pandas.DataFrame
     """
@@ -90,25 +91,29 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
         cml = cml_suppress_extremes_std(cml, window_size, std_threshold)
     if z_method:
         cml = cml_suppress_extremes_z(cml, z_threshold)
+    if temp_extremes:
+        cml = cml_temp_extremes_std(cml)
 
-    # subtract median
+    # subtract rolling median
     cml['med_A'] = cml.trsl_A.rolling(window=10000, center=True).median()
     cml['med_B'] = cml.trsl_B.rolling(window=10000, center=True).median()
 
     cml = cml.interpolate(axis=0, method='linear', limit_direction='both')
-
+    
     cml['trsl_A'] = cml.trsl_A - cml.med_A
     cml['trsl_B'] = cml.trsl_B - cml.med_B
 
     # standardisation
     for trsl in ['trsl_A', 'trsl_B']:
-        #cml[trsl] = cml[trsl].values / cml[trsl].max()
-
-        # standardisation
+        # MIN-MAX standardisation
         cml_min = cml[trsl].min()
         cml_max = cml[trsl].max()
         cml[trsl] = (cml[trsl].values-cml_min) / (cml_max-cml_min)
-    
+        # MEAN_MAX standardization
+        '''cml_mean = cml[trsl].mean()
+        cml_max = cml[trsl].max()
+        cml[trsl] = (cml[trsl].values-cml_mean) / cml_max'''
+        
     return cml
 
 
@@ -330,7 +335,7 @@ def balance_wd_classes(cml:pd.DataFrame):
     segment_lengths = cml.groupby('segment')['ref_wd'].transform('count')
 
     max_zero_length = 500  # Max length of allowed 0 sequences
-    buffer_size = 200       # Keep 500 zeros around long zero segments
+    buffer_size = 300       # Keep 500 zeros around long zero segments
 
     # Find long zero segments
     long_zero_segments = cml[(cml['ref_wd'] == 0) & (segment_lengths > max_zero_length)]['segment'].unique()
@@ -354,3 +359,30 @@ def balance_wd_classes(cml:pd.DataFrame):
     cml_balanced = cml[keep_mask].drop(columns=['segment']).reset_index(drop=True)
 
     return cml_balanced
+
+
+
+def cml_temp_extremes_std(cml:pd.DataFrame):
+    """
+    Remove fault extreme values in cml onchip temperature series by calculating floating window std,
+    interpolate missing values
+
+    Parameters
+    cml : Pandas.DataFrame, containing two aligned adjacent CMLs and rainrate reference with timestamps.
+    
+    Returns
+    cml : Pandas.DataFrame
+    """
+
+    # calculate rolling STD
+    for temp in ['temp_A', 'temp_B']:
+        temp_std = cml[temp].rolling(window=10, center=True).std()
+        # Fill NaN values at the edges
+        temp_std.fillna(method='bfill', inplace=True)
+        temp_std.fillna(method='ffill', inplace=True)
+
+        # drop values with STD above the threshold
+        cml[temp] = cml[temp].where(np.abs(temp_std) < 2.0)
+
+    cml = cml.interpolate(axis=0, method='linear')
+    return cml

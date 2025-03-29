@@ -108,13 +108,12 @@ def load_cml(dir:str, technology:str, i = int):
                                 'cml_Uptime':'uptime_A'})
         cml[['trsl_B','temp_B','uptime_B']] = pd.read_csv(path+file_list[i+1], usecols=['cml_PrijimanaUroven','cml_Teplota','cml_Uptime'])
     elif (technology=='ceragon_ip_10'):
-        cml = pd.read_csv(path+file_list[i], usecols=['time','SRA10M','cml_PrijimanaUroven','cml_Teplota','cml_VysilaciVykon','cml_Uptime']) 
+        cml = pd.read_csv(path+file_list[i], usecols=['time','SRA10M','cml_PrijimanaUroven','cml_VysilaciVykon','cml_Uptime']) 
         cml = cml.rename(columns={'SRA10M':'rain', 
                                 'cml_PrijimanaUroven':'rsl_A',
                                 'cml_VysilaciVykon':'tsl_A',
-                                'cml_Teplota':'temp_A',
                                 'cml_Uptime':'uptime_A'})
-        cml[['rsl_B','tsl_B','temp_B','uptime_B']] = pd.read_csv(path+file_list[i+1], usecols=['cml_PrijimanaUroven','cml_VysilaciVykon','cml_Teplota','cml_Uptime'])
+        cml[['rsl_B','tsl_B','uptime_B']] = pd.read_csv(path+file_list[i+1], usecols=['cml_PrijimanaUroven','cml_VysilaciVykon','cml_Uptime'])
         cml['trsl_A'] = cml.tsl_A - cml.rsl_A
         cml['trsl_B'] = cml.tsl_B - cml.rsl_B
     elif (technology=='ceragon_ip_20'):
