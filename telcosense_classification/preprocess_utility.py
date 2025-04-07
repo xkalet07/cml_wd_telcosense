@@ -323,15 +323,15 @@ def ref_preprocess(cml:pd.DataFrame,
 def balance_wd_classes(cml:pd.DataFrame):
     """
     Exclude large dry periods from both rainfall and cml data to balance wet and dry classes
-
+    built with a help of chatgpt: https://chatgpt.com/c/67daedee-2a1c-800a-9e0a-a82adf19d44b
+    
     Parameters
     cml: Pandas.DataFrame, containing cml data and reference WD
    
     Returns
     cml_balanced: Pandas.DataFrame, containing cml data and reference WD
     """
-    # by cgatgpt: https://chatgpt.com/share/67db090d-6430-800a-8964-85c8148182f3
-
+    
     # Mark contiguous segments of 0s and 1s
     cml['segment'] = (cml['ref_wd'].diff().ne(0)).cumsum()
 
@@ -389,3 +389,46 @@ def cml_temp_extremes_std(cml:pd.DataFrame):
 
     cml = cml.interpolate(axis=0, method='linear', limit_direction='both')
     return cml
+
+
+
+def shuffle_dataset(cml:pd.DataFrame, segment_size:int):
+    """
+    Separate cml dataframe into segments and shuffle them to supress long term dependent training,
+    and shuffle training and testing data.
+    built with a help of chatgpt: https://chatgpt.com/share/67f3ff55-b438-800a-8924-36e78669befe
+    
+    Parameters
+    cml : Pandas.DataFrame, containing cml data with timestamps and reference WD
+    segment_size : int, size of the segments to be shuffled, in which the data are intact.
+    
+    Returns
+    cml_shuffled : Pandas.DataFrame, containing cml data with timestamps and reference WD
+    """
+    # Make sure the dataframe is sorted by time if needed
+    cml = cml.sort_values('time').reset_index(drop=True)
+
+    # Create a new column to store the segment ID
+    cml['segment_id'] = cml.index // segment_size
+
+    # Store original segment order to enable unshuffling later
+    original_segment_order = cml['segment_id'].unique()
+
+    # Shuffle the segment IDs
+    shuffled_segment_ids = np.random.permutation(original_segment_order)
+
+    # Map original segment IDs to shuffled order
+    shuffle_map = {orig: new for new, orig in enumerate(shuffled_segment_ids)}
+    inverse_shuffle_map = {v: k for k, v in shuffle_map.items()}  # to restore later
+
+    # Apply shuffle
+    cml['shuffled_segment_id'] = cml['segment_id'].map(shuffle_map)
+
+    # Shuffle the data by shuffled_segment_id (preserving intra-segment order)
+    cml_shuffled = cml.sort_values(['shuffled_segment_id', cml.index.name or 'index']).reset_index(drop=True)
+
+    # When needed, restore the original order:
+    cml_shuffled['unshuffled_segment_id'] = cml_shuffled['shuffled_segment_id'].map(inverse_shuffle_map)
+    cml_restored = cml_shuffled.sort_values(['unshuffled_segment_id', cml.index.name or 'index']).reset_index(drop=True)
+
+    return cml_shuffled

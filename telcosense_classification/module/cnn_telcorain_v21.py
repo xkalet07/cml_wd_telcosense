@@ -47,10 +47,10 @@ class ConvBlock(nn.Module):
         self.conv2 = nn.Conv1d(channels_out, channels_out, self.kernelsize, padding='same')
         
         # https://github.com/qiuqiangkong/audioset_tagging_cnn/blob/master/pytorch/models.py
-        self.bn1 = nn.BatchNorm1d(channels_out)
+        self.bn1 = nn.BatchNorm1d(channels_out)         # https://pytorch.org/docs/stable/generated/torch.nn.BatchNorm1d.html
         self.bn2 = nn.BatchNorm1d(channels_out)
 
-        #self.init_weight()
+        self.init_weight()
         
         self.act1 = nn.ReLU()
         self.act2 = nn.ReLU()
