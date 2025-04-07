@@ -32,8 +32,14 @@ TODO: Forward and backward memory implementation will be needed.
 TODO: This approach should bring better learning performance. For longer wet/dry periods there are ocasions, where the period is wet, but trsl shows rain pattern for only fraction of the period.  
 
 
+## Hyperparameter tuning  
+- different optimizers: AdamW had better performance than SGD  
+- pooling: has highly positive results  
+- batchnormalisation: crusial improvement from TP 0.4 to 0.8  
+- weight initialisation with Xavier: 2% TP and LR improvement, 4% FP decrease.  
+- sample size: Higher sample size, slightly higher TP, but more overfitting. Under 30 lower performance. Ideal 60.  
 
-## Data preprocessing
+
 
 ## RADOLAN and Pycomlink data 
 

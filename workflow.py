@@ -42,6 +42,7 @@ Contact: 211312@vutbr.cz
 # TODO: This approach should bring better learning performance. For longer wet/dry periods there are ocasions, where the period is wet, but trsl shows rain pattern for only fraction of the period.  
 # TODO: problem with ceragon_ip_10
 # TODO: implement pooling, we need shorttinme-longtime pattern reckognition
+# TODO: Plots doesnt show cml ip or any id as a title
 
 
 """ Imports """
@@ -62,10 +63,6 @@ import torch.nn as nn
 from tqdm import tqdm
 
 
-
-
-
-
 # Import external packages
 
 # Import own modules
@@ -79,7 +76,7 @@ from telcosense_classification import plot_utility
 
 technology = 'summit'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
 dir = 'TelcoRain/merged_data/'
-i = 0
+i = 40
 # SUMMIT (0,102)    # problematic/weird: 6, 12, 28, 30, 36, 54, 62, 68, 74, 76, 94, 96     # nice:  78, ideal showcase:  100, 16,2 
 # SUMMIT_BT (0,32)  # showcase: 12,24,26,28
 # ceragon_ip_10 (4) # doesnt work so far
@@ -90,12 +87,15 @@ i = 0
 num_channels = 2
 sample_size = 60            # 60 keep lower than FC num of neurons
 batchsize = 128             # 128 most smooth (64)
-epochs = 50                 # 50
+epochs = 30                 # 50
 resume_epoch = 0 
-learning_rate = 0.001      # 0.001
-dropout_rate = 0.04         # 0.04 train loss: 0.5158175 test loss: 0.43611026
+learning_rate = 0.0008      # 0.0005 - 0.001 
+dropout_rate = 0.001         # 0.04 train loss: 0.5158175 test loss: 0.43611026
 kernel_size = 3
+n_conv_filters = [24, 48, 96, 192]
+n_fc_neurons = 128          # 64 better FP, 128 better TP
 save_param = False
+
 
 '''
 train loss: 0.5158175 
@@ -139,7 +139,8 @@ cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10,
                 suppress_step = True, conv_threshold = 250.0, 
                 std_method = True, window_size = 10, std_threshold = 5.0, 
                 z_method = True, z_threshold = 10.0,
-                reset_detect=True
+                reset_detect=True,
+                subtract_median=True
                 )
 
 ## WD REFERENCE
@@ -160,11 +161,50 @@ cml = preprocess_utility.ref_preprocess(cml,
 cml = preprocess_utility.balance_wd_classes(cml)
 
 ## PLOT
-#plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
+plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
 
+# save the preprocessed cml
+#cml.to_csv('TelcoRain/evaluating_dataset/'+technology+'_'+str(i)+'_'+cml_A_ip+'.csv', index=False)  
 
 ## TRAINING
-cml['cnn_out'] = cnn_utility.cnn_train(cml, 
+cnn_wd_threshold = 0.5
+cnn_out, train_loss, test_loss = cnn_utility.cnn_train_period_classification(cml, 
+                                                num_channels,
+                                                sample_size,
+                                                batchsize, 
+                                                epochs, 
+                                                resume_epoch, 
+                                                learning_rate, 
+                                                dropout_rate,
+                                                kernel_size,
+                                                n_conv_filters,
+                                                n_fc_neurons,
+                                                save_param
+                                                )
+
+cutoff = len(cml) % sample_size
+if cutoff == 0:
+    ref_wd = cml.ref_wd.values[:][::sample_size]   
+else:
+    ref_wd = cml.ref_wd.values[:-cutoff][::sample_size]   
+
+cnn_wd = cnn_out > cnn_wd_threshold
+true_wet = cnn_wd & ref_wd 
+false_alarm = cnn_wd & ~ref_wd
+
+TP = sum(true_wet)/sum(ref_wd)
+FP = sum(false_alarm)/sum(ref_wd)
+
+print('TP: '+str(TP))
+print('FP: '+str(FP))
+
+
+
+
+
+
+'''
+cml['cnn_out'],_,_ = cnn_utility.cnn_train(cml, 
                                         num_channels,
                                         sample_size, 
                                         batchsize, 
@@ -173,12 +213,17 @@ cml['cnn_out'] = cnn_utility.cnn_train(cml,
                                         learning_rate, 
                                         dropout_rate,
                                         kernel_size,
+                                        n_conv_filters,
+                                        n_fc_neurons,
                                         save_param
                                         )
 
 
 ## CNN output
 cnn_wd_threshold = 0.5
+
+
+
 
 cml['cnn_wd'] = cml.cnn_out > cnn_wd_threshold
 
@@ -196,7 +241,7 @@ print('FN: ' + str(sum(cml.missed_wet)/sum(cml.ref_wd)))
 
 ## PLOT
 plot_utility.plot_cnn_classification(cml, cnn_wd_threshold)
-
+'''
 
 ## CLASSIFICATION
 

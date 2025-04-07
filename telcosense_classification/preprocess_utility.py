@@ -42,7 +42,8 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
                    std_method = False, window_size = 10, std_threshold = 5.0, 
                    z_method = False, z_threshold = 10.0,
                    reset_detect = True,
-                   temp_extremes = True
+                   temp_extremes = True,
+                   subtract_median = True
                    ):
     """
     Preprocess cml dataset: Interpolate gaps, Exclude NaN values,
@@ -68,6 +69,7 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
         Adjust this based on fluctuations of your data
     reset_detect : boolean, default = True, perform trsl reset detection if True.
     temp_extremes : boolean, default = True, perform temperature smoothing if True.
+    subtract_median : boolean, default = True, subtract median if True.
 
     Returns
     cml : Pandas.DataFrame
@@ -93,15 +95,16 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
         cml = cml_suppress_extremes_z(cml, z_threshold)
     if temp_extremes:
         cml = cml_temp_extremes_std(cml)
+    if subtract_median:
+        # subtract rolling median
+        cml['med_A'] = cml.trsl_A.rolling(window=10000, center=True).median()
+        cml['med_B'] = cml.trsl_B.rolling(window=10000, center=True).median()
 
-    # subtract rolling median
-    cml['med_A'] = cml.trsl_A.rolling(window=10000, center=True).median()
-    cml['med_B'] = cml.trsl_B.rolling(window=10000, center=True).median()
-
-    cml = cml.interpolate(axis=0, method='linear', limit_direction='both')
-    
-    cml['trsl_A'] = cml.trsl_A - cml.med_A
-    cml['trsl_B'] = cml.trsl_B - cml.med_B
+        cml = cml.interpolate(axis=0, method='linear', limit_direction='both')
+        
+        cml['trsl_A'] = cml.trsl_A - cml.med_A
+        cml['trsl_B'] = cml.trsl_B - cml.med_B
+        cml = cml.drop(columns=['med_A', 'med_B'])
 
     # standardisation
     for trsl in ['trsl_A', 'trsl_B']:
@@ -384,5 +387,5 @@ def cml_temp_extremes_std(cml:pd.DataFrame):
         # drop values with STD above the threshold
         cml[temp] = cml[temp].where(np.abs(temp_std) < 2.0)
 
-    cml = cml.interpolate(axis=0, method='linear')
+    cml = cml.interpolate(axis=0, method='linear', limit_direction='both')
     return cml
