@@ -89,7 +89,7 @@ sample_size = 60            # 60 keep lower than FC num of neurons
 batchsize = 128             # 128 most smooth (64)
 epochs = 50                 # 50
 resume_epoch = 0 
-learning_rate = 0.0008      # 0.0005 - 0.001 
+learning_rate = 0.0005      # 0.0005 - 0.001 
 dropout_rate = 0.001         # 0.04 train loss: 
 kernel_size = 3
 n_conv_filters = [24, 48, 96, 192]
@@ -147,10 +147,6 @@ cml = preprocess_utility.ref_preprocess(cml,
                                         )
 
 
-
-
-
-
 #plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
 
 
@@ -160,7 +156,12 @@ cml = preprocess_utility.balance_wd_classes(cml)
 ## PLOT
 plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
 
-# save the preprocessed cml
+## SHUFFLE DATASET
+cml = preprocess_utility.shuffle_dataset(cml, segment_size = 20000)
+
+plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
+
+## save the preprocessed cml
 #cml.to_csv('TelcoRain/evaluating_dataset/'+technology+'_'+str(i)+'_'+cml_A_ip+'.csv', index=False)  
 
 ## TRAINING
@@ -181,9 +182,10 @@ cnn_out, train_loss, test_loss = cnn_utility.cnn_train_period_classification(cml
 
 ## CNN output
 cutoff = len(cml) % sample_size
+cml['cnn_out'] = np.append(np.repeat(cnn_out, sample_size), np.zeros(cutoff))
 
-cnn_out_upsampled = np.repeat(cnn_out, sample_size)
-cml['cnn_out'] = np.append(cnn_out_upsampled, np.zeros(cutoff))
+# sort CML back from previous shuffle
+cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
 
 cml['cnn_wd'] = cml.cnn_out > cnn_wd_threshold
 

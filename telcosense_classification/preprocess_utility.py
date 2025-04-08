@@ -392,7 +392,7 @@ def cml_temp_extremes_std(cml:pd.DataFrame):
 
 
 
-def shuffle_dataset(cml:pd.DataFrame, segment_size:int):
+def shuffle_dataset(cml:pd.DataFrame, segment_size = 20000):
     """
     Separate cml dataframe into segments and shuffle them to supress long term dependent training,
     and shuffle training and testing data.
@@ -400,35 +400,25 @@ def shuffle_dataset(cml:pd.DataFrame, segment_size:int):
     
     Parameters
     cml : Pandas.DataFrame, containing cml data with timestamps and reference WD
-    segment_size : int, size of the segments to be shuffled, in which the data are intact.
+    segment_size : int, default = 20000, size of the segments to be shuffled, 
+        in which the data remain intact.
     
     Returns
     cml_shuffled : Pandas.DataFrame, containing cml data with timestamps and reference WD
     """
-    # Make sure the dataframe is sorted by time if needed
-    cml = cml.sort_values('time').reset_index(drop=True)
-
-    # Create a new column to store the segment ID
+    
     cml['segment_id'] = cml.index // segment_size
 
-    # Store original segment order to enable unshuffling later
-    original_segment_order = cml['segment_id'].unique()
-
     # Shuffle the segment IDs
-    shuffled_segment_ids = np.random.permutation(original_segment_order)
+    shuffled_segment_ids = np.random.permutation(cml['segment_id'].unique())
 
-    # Map original segment IDs to shuffled order
+    # Map original segment IDs to shuffled IDs in a dictionary
     shuffle_map = {orig: new for new, orig in enumerate(shuffled_segment_ids)}
-    inverse_shuffle_map = {v: k for k, v in shuffle_map.items()}  # to restore later
-
-    # Apply shuffle
-    cml['shuffled_segment_id'] = cml['segment_id'].map(shuffle_map)
 
     # Shuffle the data by shuffled_segment_id (preserving intra-segment order)
-    cml_shuffled = cml.sort_values(['shuffled_segment_id', cml.index.name or 'index']).reset_index(drop=True)
+    cml['shuffled_segment_id'] = cml['segment_id'].map(shuffle_map)
+    cml_shuffled = cml.sort_values(['shuffled_segment_id', 'time']).reset_index(drop=True)
 
-    # When needed, restore the original order:
-    cml_shuffled['unshuffled_segment_id'] = cml_shuffled['shuffled_segment_id'].map(inverse_shuffle_map)
-    cml_restored = cml_shuffled.sort_values(['unshuffled_segment_id', cml.index.name or 'index']).reset_index(drop=True)
+    # to sort cml back: cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
 
     return cml_shuffled
