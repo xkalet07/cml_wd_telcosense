@@ -208,7 +208,7 @@ def cnn_train_period_classification(ds:pd.DataFrame,
         fig.tight_layout(pad=1.0)
         resume_epoch = epoch
     # export training curve plot
-    fig.savefig('results/'+str(learning_rate)+'/loss_curve'+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")+'.png')
+    fig.savefig('results/loss_curve_'+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")+'.png')
     plt.close()
     # save cnn parameters
     if save_param:

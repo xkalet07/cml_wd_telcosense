@@ -74,9 +74,9 @@ from telcosense_classification import plot_utility
 
 """ Constant Variable definitions """
 
-technology = '1s10'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
+technology = 'summit'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
 dir = 'TelcoRain/merged_data/'
-i = 0
+i = 100
 # SUMMIT (0,102)    # problematic/weird: 6, 12, 28, 30, 36, 54, 62, 68, 74, 76, 94, 96     # nice:  78, ideal showcase:  100, 16,2 
 # SUMMIT_BT (0,32)  # showcase: 12,24,26,28
 # ceragon_ip_10 (4) # doesnt work so far
@@ -84,7 +84,7 @@ i = 0
 # 1s10 (26)         # nice:0,2, problematic:4, 12, 14, 16,18,22, 24 overall more extreme peaks
 
 # Training CNN parameters
-num_channels = 4
+num_channels = 2
 sample_size = 60            # 60 keep lower than FC num of neurons
 batchsize = 128             # 128 most smooth (64)
 epochs = 50                 # 50
@@ -154,15 +154,15 @@ cml = preprocess_utility.ref_preprocess(cml,
 cml = preprocess_utility.balance_wd_classes(cml)
 
 ## PLOT
-plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
+#plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
 
 ## SHUFFLE DATASET
-cml = preprocess_utility.shuffle_dataset(cml, segment_size = 20000)
+#cml = preprocess_utility.shuffle_dataset(cml, segment_size = 20000)
 
-plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
+#plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
 
 ## save the preprocessed cml
-#cml.to_csv('TelcoRain/evaluating_dataset/'+technology+'_'+str(i)+'_'+cml_A_ip+'.csv', index=False)  
+cml.to_csv('TelcoRain/evaluating_dataset_meanMax/'+technology+'_'+str(i)+'_'+cml_A_ip+'.csv', index=False)  
 
 ## TRAINING
 cnn_wd_threshold = 0.5

@@ -38,7 +38,7 @@ TODO: This approach should bring better learning performance. For longer wet/dry
 - batchnormalisation: crusial improvement from TP 0.4 to 0.8  
 - weight initialisation with Xavier: 2% TP and LR improvement, 4% FP decrease.  
 - sample size: Higher sample size, slightly higher TP, but more overfitting. Under 30 lower performance. Ideal 60.  
-
+- Standardization: +3% better TP results with mean-max standardization  
 
 
 ## RADOLAN and Pycomlink data 

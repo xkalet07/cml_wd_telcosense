@@ -109,13 +109,13 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
     # standardisation
     for trsl in ['trsl_A', 'trsl_B']:
         # MIN-MAX standardisation
-        cml_min = cml[trsl].min()
+        #cml_min = cml[trsl].min()
         cml_max = cml[trsl].max()
-        cml[trsl] = (cml[trsl].values-cml_min) / (cml_max-cml_min)
-        # MEAN_MAX standardization
-        '''cml_mean = cml[trsl].mean()
+        #cml[trsl] = (cml[trsl].values-cml_min) / (cml_max-cml_min)
+        # MEAN-MAX standardization
+        cml_mean = cml[trsl].mean()
         cml_max = cml[trsl].max()
-        cml[trsl] = (cml[trsl].values-cml_mean) / cml_max'''
+        cml[trsl] = (cml[trsl].values-cml_mean) / cml_max
         
     return cml
 

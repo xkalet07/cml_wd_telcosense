@@ -25,6 +25,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 import os
+import datetime
 
 
 # Import external packages
@@ -32,6 +33,7 @@ import os
 # Import own modules
 from telcosense_classification import cnn_utility
 from telcosense_classification import plot_utility
+from telcosense_classification import preprocess_utility
 
 
 """ Constant Variable definitions """
@@ -42,10 +44,10 @@ dir = 'TelcoRain/evaluating_dataset/'   # directory containing 10 preprocessed C
 num_channels = 2
 sample_size = 60            # 60 keep lower than FC num of neurons
 batchsize = 128             # 128 most smooth (64)
-epochs = 30                 # 50
+epochs = 40                 # 50
 resume_epoch = 0 
-learning_rate = 0.0005      # 0.0005 - 0.001 
-dropout_rate = 0.003         # 0.04 train loss: 0.5158175 test loss: 0.43611026
+learning_rate = 0.0003      # 0.0005 - 0.001 
+dropout_rate = 0.001        # 
 kernel_size = 3             # 3 - best performance
 n_conv_filters = [24, 48, 96, 192]     # [48, 96, 192, 384] 4% worse
 n_fc_neurons = 128          # 64 better FP, 128 better TP
@@ -60,16 +62,73 @@ save_param = False
 file_list = os.listdir(dir)
 
 ds = []
-
 for i in range(len(file_list)):
     cml = pd.read_csv(dir+file_list[i])
-    ds.append(cml) 
-#plot_utility.plot_cml(ds[0], columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
+    ds.append(cml)
+cml1 = pd.concat([ds[0],ds[1],ds[2],ds[3],ds[4]], ignore_index=True) 
+
+#plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
+
+cml1 = preprocess_utility.shuffle_dataset(cml1, segment_size = 20000)
+
+file_list2 = os.listdir(dir)
+ds = []
+for i in range(len(file_list2)):
+    cml = pd.read_csv('TelcoRain/evaluating_dataset_meanMax/'+file_list2[i])
+    ds.append(cml)
+cml2 = pd.concat([ds[0],ds[1],ds[2],ds[3],ds[4]], ignore_index=True) 
+
+#plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
+
+cml2 = preprocess_utility.shuffle_dataset(cml2, segment_size = 20000)
+
 
 
 cnn_wd_threshold = 0.5
+mean_results = [['train_loss', 'test_loss', 'TP', 'FP']]
+## TRAINING sample
+for cml in [cml1, cml2, cml1, cml2]:
+    results = [['train_loss', 'test_loss', 'TP', 'FP']]
+    for param in range(10):
+        cnn_out, train_loss, test_loss = cnn_utility.cnn_train_period_classification(cml, 
+                                            num_channels,
+                                            sample_size,
+                                            batchsize, 
+                                            epochs, 
+                                            resume_epoch, 
+                                            learning_rate, 
+                                            dropout_rate,
+                                            kernel_size,
+                                            n_conv_filters,
+                                            n_fc_neurons,
+                                            save_param
+                                            )
+
+        cutoff = len(cml) % sample_size
+        if cutoff == 0:
+            ref_wd = cml.ref_wd.values[:][::sample_size]   
+        else:
+            ref_wd = cml.ref_wd.values[:-cutoff][::sample_size]   
+
+        cnn_wd = cnn_out > cnn_wd_threshold
+        true_wet = cnn_wd & ref_wd 
+        false_alarm = cnn_wd & ~ref_wd
+
+        TP = sum(true_wet)/sum(ref_wd)
+        FP = sum(false_alarm)/sum(ref_wd)
+        cml_res = [train_loss, test_loss, TP, FP]
+        results.append(cml_res)
+    
+    df = pd.DataFrame(results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
+    df.to_csv('results/results_'+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")+'.csv')
+    mean_results.append(np.mean(results[1:],0))
+df = pd.DataFrame(mean_results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
+df.to_csv('results/mean_repeat.csv')
+## CLASSIFICATION
 
 
+
+'''
 for learning_rate in [0.0001,0.0005,0.001,0.002,0.003]:
     mean_results = [['train_loss', 'test_loss', 'TP', 'FP']]
     for param in range(10):
@@ -110,7 +169,8 @@ for learning_rate in [0.0001,0.0005,0.001,0.002,0.003]:
         df.to_csv('results/'+str(learning_rate)+'/results_repeat_'+str(param)+'.csv')
 
         ## TRAINING timestep
-        '''
+'''
+'''
         results = [['train_loss', 'test_loss', 'TP', 'FP']]
         for i in range(len(file_list)):
             ds[i]['cnn_out'], train_loss, test_loss = cnn_utility.cnn_train_timestep_classification(ds[i], 
@@ -138,10 +198,12 @@ for learning_rate in [0.0001,0.0005,0.001,0.002,0.003]:
         
         df = pd.DataFrame(results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
         df.to_csv('results/results_timestepout_'+str(param)+'.csv')
-        '''
+
     #mean_results.append(np.mean(mean_results[1:],0))
     df = pd.DataFrame(mean_results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
     df.to_csv('results/'+str(learning_rate)+'/mean_repeat_'+str(param)+'.csv')
 ## CLASSIFICATION
+
+'''
 
 #input('press enter to continue')
