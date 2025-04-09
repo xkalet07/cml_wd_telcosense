@@ -33,10 +33,6 @@ from scipy.signal import find_peaks
 
 """ Function definitions """
 
-
-
-
-
 def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10, 
                    suppress_step = False, conv_threshold = 20.0, 
                    std_method = False, window_size = 10, std_threshold = 5.0, 
@@ -69,7 +65,7 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
         Adjust this based on fluctuations of your data
     reset_detect : boolean, default = True, perform trsl reset detection if True.
     temp_extremes : boolean, default = True, perform temperature smoothing if True.
-    subtract_median : boolean, default = True, subtract median if True.
+    subtract_median : boolean, default = True, subtract rolling median if True.
 
     Returns
     cml : Pandas.DataFrame
@@ -96,27 +92,15 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
     if temp_extremes:
         cml = cml_temp_extremes_std(cml)
     if subtract_median:
-        # subtract rolling median
-        cml['med_A'] = cml.trsl_A.rolling(window=10000, center=True).median()
-        cml['med_B'] = cml.trsl_B.rolling(window=10000, center=True).median()
-
-        cml = cml.interpolate(axis=0, method='linear', limit_direction='both')
-        
-        cml['trsl_A'] = cml.trsl_A - cml.med_A
-        cml['trsl_B'] = cml.trsl_B - cml.med_B
-        cml = cml.drop(columns=['med_A', 'med_B'])
+        cml = subtract_trsl_median(cml)
 
     # standardisation
     for trsl in ['trsl_A', 'trsl_B']:
-        # MIN-MAX standardisation
-        #cml_min = cml[trsl].min()
-        cml_max = cml[trsl].max()
-        #cml[trsl] = (cml[trsl].values-cml_min) / (cml_max-cml_min)
         # MEAN-MAX standardization
         cml_mean = cml[trsl].mean()
         cml_max = cml[trsl].max()
         cml[trsl] = (cml[trsl].values-cml_mean) / cml_max
-        
+
     return cml
 
 
@@ -259,6 +243,31 @@ def cml_reset_detect(cml:pd.DataFrame):
     cml = cml.reset_index(drop=True)
 
     return cml
+
+
+
+def subtract_trsl_median(cml:pd.DataFrame):
+    """
+    Subtract rolling median with window of 10000 samples from trsl data. 
+    This action supresses long therm variations and step changes
+
+    Parameters
+    cml: Pandas.DataFrame, containing cml data and reference WD
+   
+    Returns
+    cml: Pandas.DataFrame, containing cml data and reference WD
+    """
+    cml['med_A'] = cml.trsl_A.rolling(window=10000, center=True).median()
+    cml['med_B'] = cml.trsl_B.rolling(window=10000, center=True).median()
+
+    cml = cml.interpolate(axis=0, method='linear', limit_direction='both')
+    
+    cml['trsl_A'] = cml.trsl_A - cml.med_A
+    cml['trsl_B'] = cml.trsl_B - cml.med_B
+    cml = cml.drop(columns=['med_A', 'med_B'])
+
+    return cml
+
 
 
 def ref_preprocess(cml:pd.DataFrame, 

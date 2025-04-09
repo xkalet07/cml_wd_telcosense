@@ -21,20 +21,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-""" CNN module architecture definition """
+""" Function definitions """
 
 # https://github.com/qiuqiangkong/audioset_tagging_cnn/blob/master/pytorch/models.py
 def init_layer(layer):
-    """ Initialize a Convolutional layer """
+    # Initialize a Convolutional layer
     nn.init.xavier_uniform_(layer.weight)
 
     
 def init_bn(bn):
-    """ Initialize a Batchnorm layer """
+    # Initialize a Batchnorm layer
     bn.bias.data.fill_(0.)
     bn.weight.data.fill_(1.)
 
 
+""" CNN module architecture """
 
 class ConvBlock(nn.Module):
     def __init__(self, kernel_size, channels_in, channels_out):
@@ -86,7 +87,6 @@ class cnn_class(nn.Module):
         self.n_filters = n_filters
 
         ### Convolutional part
-        # ConvBlock: def __init__(self, kernel_size, dim_in, dim, dim_out):
         self.cb1 = ConvBlock(self.kernelsize, self.channels, self.n_filters[0])
         self.cb2 = ConvBlock(self.kernelsize, self.n_filters[0], self.n_filters[1])
         self.cb3 = ConvBlock(self.kernelsize, self.n_filters[1], self.n_filters[2])
@@ -95,7 +95,7 @@ class cnn_class(nn.Module):
         ### Fully Connected part 
         self.act = nn.ReLU()
         self.dense1 = nn.Linear(n_filters[3],n_fc_neurons)
-        self.drop1 = nn.Dropout(p=dropout)
+        self.drop1 = nn.Dropout(dropout)
         self.dense2 = nn.Linear(n_fc_neurons, n_fc_neurons)
         self.drop2 = nn.Dropout(dropout)
         self.denseOut = nn.Linear(n_fc_neurons, 1)                     # single value on the output

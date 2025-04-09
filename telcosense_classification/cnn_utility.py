@@ -44,21 +44,23 @@ import telcosense_classification.module.cnn_telcorain_v11 as cnn_cont
 
 """ Function definitions """
 
-## TODO: shuffle train and test data 
+## TODO: shuffle train and test data between cycles
+## TODO: make 1 CNN architecture with choice of one output value for whole sample
+#           or output size = sample size. input parameter
 
-def cnn_train_period_classification(ds:pd.DataFrame, 
-                                    num_channels = 2,
-                                    sample_size = 100, 
-                                    batchsize = 20, 
-                                    epochs = 20, 
-                                    resume_epoch = 0, 
-                                    learning_rate = 0.01, 
-                                    dropout_rate = 0.1,
-                                    kernel_size = 3,
-                                    n_conv_filters = 128,
-                                    n_fc_neurons = 64,
-                                    save_param = False
-                                    ):
+def cnn_train_period(ds:pd.DataFrame, 
+                    num_channels = 2,
+                    sample_size = 100, 
+                    batchsize = 20, 
+                    epochs = 20, 
+                    resume_epoch = 0, 
+                    learning_rate = 0.01, 
+                    dropout_rate = 0.1,
+                    kernel_size = 3,
+                    n_conv_filters = 128,
+                    n_fc_neurons = 64,
+                    save_param = False
+                    ):
     """
     Train given cnn modul on given cml dataset over given number of epochs. 
     perform testing for each epoch, save training parameters. 
@@ -136,7 +138,7 @@ def cnn_train_period_classification(ds:pd.DataFrame,
                                 sample_size=sample_size, 
                                 kernel_size=kernel_size, 
                                 dropout = dropout_rate, 
-                                n_fc_neurons = n_fc_neurons,                    # 64
+                                n_fc_neurons = n_fc_neurons,
                                 n_filters = n_conv_filters
                                 )
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
@@ -221,19 +223,19 @@ def cnn_train_period_classification(ds:pd.DataFrame,
 
 
 
-def cnn_train_timestep_classification(ds:pd.DataFrame, 
-                                    num_channels = 2,
-                                    sample_size = 100, 
-                                    batchsize = 20, 
-                                    epochs = 20, 
-                                    resume_epoch = 0, 
-                                    learning_rate = 0.01, 
-                                    dropout_rate = 0.1,
-                                    kernel_size = 3,
-                                    n_conv_filters = 128,
-                                    n_fc_neurons = 64,
-                                    save_param = False
-                                    ):
+def cnn_train_timestep(ds:pd.DataFrame, 
+                        num_channels = 2,
+                        sample_size = 100, 
+                        batchsize = 20, 
+                        epochs = 20, 
+                        resume_epoch = 0, 
+                        learning_rate = 0.01, 
+                        dropout_rate = 0.1,
+                        kernel_size = 3,
+                        n_conv_filters = 128,
+                        n_fc_neurons = 64,
+                        save_param = False
+                        ):
     """
     Train given cnn modul on given cml dataset over given number of epochs. 
     perform testing for each epoch, save training parameters.
@@ -399,88 +401,3 @@ def cnn_train_timestep_classification(ds:pd.DataFrame,
 
     cnn_out = np.append(np.array(cnn_prediction).reshape(-1), np.zeros(cutoff))
     return cnn_out, np.mean(train_losses), np.mean(test_losses)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-'''
-
-def cnn_classify(ds:xr.Dataset, sample_size:int, batchsize = 20, param_dir = 'default'):
-    """
-    Classify rainy periods from trsl data of CML, using trained cnn modul
-    
-    Parameters
-    ds : xarray.dataset containing CML data and optionally reference rain data for validation
-    sample_size : int, length of samples for wet/dry classification in minutes
-    batchsize : int, default = 20, number of samples in the batch, given to cnn
-    param_dir: str, default = 'default', 
-        
-    Returns
-    total_loss: float, total cnn prediction loss (w/d reference - cnn output)
-    """
-
-    n_samples = len(ds.sample_num)
-    num_cmls = len(ds.cml_id)
-
-    trsl = ds.trsl_st.values.reshape(num_cmls*n_samples,2 , sample_size)
-    ref = ds.ref_wd.values.reshape(num_cmls*n_samples)
-
-    # Storing as tensors [2]
-    trsl_data = torch.Tensor(trsl)
-    ref_data = torch.Tensor(ref)
-
-    # Turning into TensorDataset
-    dataset = torch.utils.data.TensorDataset(trsl_data, ref_data)
-
-    validloader = torch.utils.data.DataLoader(dataset, batch_size = batchsize, shuffle = False)
-    
-
-    # loading the model parameters:
-    path = 'modul/trained_cnn_param/'
-    model = cnn.cnn_class()
-    model.load_state_dict(torch.load(path+param_dir))
-
-    cnn_output = []
-    valid_losses = []
-    with torch.no_grad():
-        for inputs, targets in tqdm(validloader):
-            pred = model(inputs)
-            pred = nn.Flatten(0,1)(pred)
-            cnn_output = cnn_output + pred.tolist()
-
-            if np.isnan(pred.tolist()).any():            # exclude NaN values for loss calculation
-                targets = targets[~np.isnan(pred.tolist())]
-                pred = pred[~np.isnan(pred.tolist())]
-            loss = nn.BCELoss()(pred, targets)
-            if ~np.isnan(loss.tolist()).any():           # this case prevents appending nan loss to lossfunc array
-                valid_losses.append(loss.detach().numpy())
-        total_loss = np.mean(valid_losses)
-        
-    print(total_loss)
-    return cnn_output
-'''
