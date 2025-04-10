@@ -3,6 +3,8 @@
 Repository of Masters thesis CNN implementation 2024/2025  
 author: Lukáš Kaleta  
 
+See recent result figures [here](https://drive.google.com/drive/folders/11z7vx3xHwLl-xq6UOi-dIngluj5o-5Ou?usp=sharing)  
+
 ## objectives:
 
 DONE: bad gauge reference interpolation  

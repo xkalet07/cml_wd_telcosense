@@ -74,9 +74,9 @@ from telcosense_classification import plot_utility
 
 """ Constant Variable definitions """
 
-technology = 'summit'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
+technology = 'summit_bt'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
 dir = 'TelcoRain/merged_data/'
-i = 100
+i = 24
 # SUMMIT (0,102)    # problematic/weird: 6, 12, 28, 30, 36, 54, 62, 68, 74, 76, 94, 96     # nice:  78, ideal showcase:  100, 16,2 
 # SUMMIT_BT (0,32)  # showcase: 12,24,26,28
 # ceragon_ip_10 (4) # doesnt work so far
@@ -108,18 +108,16 @@ path = dir + technology+'/'
 
 # list of all files
 file_list = sorted(os.listdir(path))
-# Check for missing column, WARNING: long execution
+
+## Check for missing column, WARNING: long execution
 # missng_rain = data_loading_utility.find_missing_column('SRA10M', path)
 # file_list = sorted(list(set(file_list) - set(missng_rain)))
 
+
+## LOADING DATA 
 # Loading metadata
 metadata_all = pd.read_csv('TelcoRain/filtered_radius1.0km_offset1.0_CML.csv')
 metadata_all = metadata_all.drop_duplicates()          # clean duplicative rows
-
-
-
-## LOADING DATA 
-# metadata
 cml_A_ip = file_list[i][file_list[i].rfind('CML_')+4:-4]
 metadata = metadata_all.loc[metadata_all['IP_address_A'] == cml_A_ip]
 
@@ -162,11 +160,11 @@ cml = preprocess_utility.balance_wd_classes(cml)
 #plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
 
 ## save the preprocessed cml
-cml.to_csv('TelcoRain/evaluating_dataset_meanMax/'+technology+'_'+str(i)+'_'+cml_A_ip+'.csv', index=False)  
+#cml.to_csv('TelcoRain/evaluating_dataset_meanMax/'+technology+'_'+str(i)+'_'+cml_A_ip+'.csv', index=False)  
 
 ## TRAINING
 cnn_wd_threshold = 0.5
-cnn_out, train_loss, test_loss = cnn_utility.cnn_train_period_classification(cml, 
+cnn_out, train_loss, test_loss = cnn_utility.cnn_train_period(cml, 
                                                 num_channels,
                                                 sample_size,
                                                 batchsize, 
@@ -185,7 +183,7 @@ cutoff = len(cml) % sample_size
 cml['cnn_out'] = np.append(np.repeat(cnn_out, sample_size), np.zeros(cutoff))
 
 # sort CML back from previous shuffle
-cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
+#cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
 
 cml['cnn_wd'] = cml.cnn_out > cnn_wd_threshold
 
@@ -230,24 +228,6 @@ print('FP: '+str(FP))
 
 
 
-'''
-cml['cnn_out'],_,_ = cnn_utility.cnn_train(cml, 
-                                        num_channels,
-                                        sample_size, 
-                                        batchsize, 
-                                        epochs, 
-                                        resume_epoch, 
-                                        learning_rate, 
-                                        dropout_rate,
-                                        kernel_size,
-                                        n_conv_filters,
-                                        n_fc_neurons,
-                                        save_param
-                                        )
-
-
-
-'''
 
 ## CLASSIFICATION
 
