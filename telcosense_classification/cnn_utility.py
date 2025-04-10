@@ -134,6 +134,7 @@ def cnn_train_period(ds:pd.DataFrame,
     trainloader = torch.utils.data.DataLoader(dataset, batchsize, shuffle = False)   #!!!!!!!!!!!! potential problem: batchsize
     testloader = torch.utils.data.DataLoader(testset, batchsize, shuffle = False)
 
+    # CNN model
     model = cnn_sing.cnn_class(channels=num_channels, 
                                 sample_size=sample_size, 
                                 kernel_size=kernel_size, 
@@ -141,7 +142,10 @@ def cnn_train_period(ds:pd.DataFrame,
                                 n_fc_neurons = n_fc_neurons,
                                 n_filters = n_conv_filters
                                 )
+    
+    # used optimizer and learning rate scheduler
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)         # each 10 epoch multiply lr by 0.5
 
     # if resuming training
     if resume_epoch == 0:
@@ -169,6 +173,7 @@ def cnn_train_period(ds:pd.DataFrame,
                 loss.backward()
             optimizer.step()
             train_losses.append(loss.detach().numpy())
+        scheduler.step()
         loss_dict['train']['loss'].append(np.mean(train_losses))
     
         # testing

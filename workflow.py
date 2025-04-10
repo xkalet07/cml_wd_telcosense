@@ -32,7 +32,7 @@ Contact: 211312@vutbr.cz
 # DONE: dry 10min segments during light rainfall
 # tip: Summit technology rsl is [-dB]
 # TODO: Feed cnn constant metadata such as frequency, technology, length...
-# TODO: Feed cnn the cml temperature
+# DONE: Feed cnn the cml temperature -> -10% worse TPR with this CNN model
 # DONE: If uptime is constant drop values
 # TODO: spikes remaining around step after supressing the step in preprocessing (especially 1s10)
 # tip: all datetime is in UTC time

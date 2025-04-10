@@ -67,7 +67,7 @@ for i in range(len(file_list)):
     ds.append(cml)
 cml = pd.concat([ds[0],ds[1],ds[2],ds[3],ds[4],ds[5],ds[6],ds[7],ds[8],ds[9]], ignore_index=True) 
 
-cml = preprocess_utility.shuffle_dataset(cml, segment_size = 20000)
+cml = preprocess_utility.shuffle_dataset(cml, segment_size = batchsize*sample_size)
 
 
 # load x cml at once
@@ -107,7 +107,7 @@ for cml in [cml]:
         results.append(cml_res)
     
     df = pd.DataFrame(results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
-    df.to_csv('results/results_'+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")+'.csv')
+    df.to_csv('results/results_LR_scheduler.csv')     # +datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     mean_results.append(np.mean(results[1:],0))
 df = pd.DataFrame(mean_results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
 df.to_csv('results/mean_repeat.csv')
