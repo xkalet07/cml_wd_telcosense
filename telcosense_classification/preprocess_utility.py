@@ -329,32 +329,30 @@ def ref_preprocess(cml:pd.DataFrame,
 
 
 
-def balance_wd_classes(cml:pd.DataFrame):
+def balance_wd_classes(cml:pd.DataFrame, max_zero_length = 600):
     """
     Exclude large dry periods from both rainfall and cml data to balance wet and dry classes
     built with a help of chatgpt: https://chatgpt.com/c/67daedee-2a1c-800a-9e0a-a82adf19d44b
     
     Parameters
     cml: Pandas.DataFrame, containing cml data and reference WD
-   
+    max_zero_length :int, default= 600, max length of 0 sequences to keep
+    
     Returns
     cml_balanced: Pandas.DataFrame, containing cml data and reference WD
     """
-    
+    buffer_size = max_zero_length//2       # Keep number of zeros around long zero segments
+
     # Mark contiguous segments of 0s and 1s
     cml['segment'] = (cml['ref_wd'].diff().ne(0)).cumsum()
 
     segment_lengths = cml.groupby('segment')['ref_wd'].transform('count')
-
-    max_zero_length = 500  # Max length of allowed 0 sequences
-    buffer_size = 300       # Keep 500 zeros around long zero segments
-
+    
     # Find long zero segments
     long_zero_segments = cml[(cml['ref_wd'] == 0) & (segment_lengths > max_zero_length)]['segment'].unique()
 
-    # Create a mask to keep values
-    #keep_mask = (cml['ref_wd'] == 1)    # Always keep 1s
-    keep_mask = np.ones(len(cml), dtype=bool)
+    # Create a mask to mark values to keep
+    keep_mask = np.ones(len(cml), dtype=bool)           # mask of ones, excluded segments wil be marked 0
 
     for seg in long_zero_segments:
         seg_indices = cml[cml['segment'] == seg].index  # Get all row indices of this segment

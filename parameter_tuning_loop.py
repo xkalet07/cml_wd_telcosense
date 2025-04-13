@@ -38,7 +38,8 @@ from telcosense_classification import preprocess_utility
 
 """ Constant Variable definitions """
 
-dir = 'TelcoRain/evaluating_dataset_meanMax/'   # directory containing 10 preprocessed CMLs across technologies
+dir = 'TelcoRain/merged_data_preprocessed_long/1s10/'
+#dir = 'TelcoRain/evaluating_dataset/'   # directory containing 10 preprocessed CMLs across technologies
 
 # Training CNN parameters
 num_channels = 2
@@ -59,7 +60,6 @@ save_param = False
 # DONE: dropout between conv layers
 # TODO: early stopping
 # TODO: leaky relu
-# current best: LR: 0.0003, 0.04809212237596512, 2.229833245277405, 0.8465793304221252, 0.09762251334303734
 
 """ Function definitions """
 
@@ -71,9 +71,10 @@ file_list = os.listdir(dir)
 
 ds = []
 for i in range(len(file_list)):
-    cml = pd.read_csv(dir+file_list[i])
-    ds.append(cml)
-cml = pd.concat([ds[0],ds[1],ds[2],ds[3],ds[4],ds[5],ds[6],ds[7],ds[8],ds[9]], ignore_index=True) 
+    cmli = pd.read_csv(dir+file_list[i])
+    ds.append(cmli)
+
+cml = pd.concat(ds, ignore_index=True) 
 
 cml = preprocess_utility.shuffle_dataset(cml, segment_size = batchsize*sample_size)
 

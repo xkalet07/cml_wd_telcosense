@@ -39,8 +39,23 @@ import os
 metadata_all = pd.read_csv('TelcoRain/filtered_radius1.0km_offset1.0_CML.csv')
 metadata_all = metadata_all.drop_duplicates()         # clean duplicative rows
 
-# Summit technology rsl [-dB]
 
+## analyze stationary CML parameters
+# CML length, frequency, polarization, gauge distance from cmlA, cmlB, altitude, height above terrain
+# frequency_A,frequency_B,distance,polarization,altitude_A,height_above_terrain_A,height_above_terrain_B,distance_A,distance_B,gauge_elevation
+frequency = metadata_all.frequency_A
+
+plt.hist(np.append(metadata_all.frequency_A.values,metadata_all.frequency_B.values))
+plt.show() 
+
+plt.hist(metadata_all.polarization)
+plt.show() 
+
+plt.hist(metadata_all.distance)
+plt.show() 
+
+
+## TRSL statistic analysis
 # Get the list of all csvs
 path = 'TelcoRain/merged_data/summit/'
 file_list = os.listdir(path)

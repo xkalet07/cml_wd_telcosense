@@ -94,7 +94,7 @@ dropout_rate = 0.001        # 0.001
 kernel_size = 3             # 3 - best performance
 n_conv_filters = [24, 48, 96, 192]     # [48, 96, 192, 384] 4% worse
 n_fc_neurons = 128          # 128 (64 better FP, 128 better TP)
-single_output = False
+single_output = True
 shuffle = False             # use True (for testloss: 1.3)
 save_param = False
 
@@ -126,11 +126,6 @@ metadata = metadata_all.loc[metadata_all['IP_address_A'] == cml_A_ip]
 # Loading cml
 cml = data_loading_utility.load_cml(dir, technology, i)
 
-# make copies for presentation only
-#cml['trsl_A_orig'] = cml.trsl_A.copy()
-#cml['trsl_B_orig'] = cml.trsl_B.copy()
-
-
 ## PREPROCESS
 cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10, 
                 suppress_step = True, conv_threshold = 250.0, 
@@ -151,7 +146,7 @@ cml = preprocess_utility.ref_preprocess(cml,
 
 
 ## CLASS BALANCE
-cml = preprocess_utility.balance_wd_classes(cml)
+#cml = preprocess_utility.balance_wd_classes(cml)
 
 ## PLOT
 #plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
@@ -184,8 +179,10 @@ cnn_out, train_loss, test_loss = cnn_utility.cnn_train_period(cml,
 
 ## CNN output
 cutoff = len(cml) % sample_size
-cml['cnn_out'] = np.append(cnn_out, np.zeros(cutoff))
-#cml['cnn_out'] = np.append(np.repeat(cnn_out, sample_size), np.zeros(cutoff))
+# for sample long output
+#cml['cnn_out'] = np.append(cnn_out, np.zeros(cutoff))
+#for single output
+cml['cnn_out'] = np.append(np.repeat(cnn_out, sample_size), np.zeros(cutoff))
 
 # sort CML back from previous shuffle
 #cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
