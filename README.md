@@ -41,6 +41,9 @@ TODO: This approach should bring better learning performance. For longer wet/dry
 - weight initialisation with Xavier: 2% TP and LR improvement, 4% FP decrease.  
 - sample size: Higher sample size, slightly higher TP, but more overfitting. Under 30 lower performance. Ideal 60.  
 - Standardization: +3% better TP results with mean-max standardization  
+- Weight_decay: using 1e-4 weight decay in optimizer, enhances TP+1% lowers testloss to 1.6 and lowers FP  
+- convolutional filters best performing [24,48,96,192], less layers or constant layer sizes lead to worse performance. But using [16, 32, 64, 128] lead to -2 % worse TPR witth great decrease of trainloss to 1.45   
+- dropout layers in convolutional layers: needs to be low value, same as for FC: dropout=0.001. Same TPR=0.86, lower testloss of 1.42
 
 
 ## RADOLAN and Pycomlink data 

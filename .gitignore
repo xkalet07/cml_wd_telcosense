@@ -61,6 +61,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+venv_backup/
+x_venv_backup/
 
 # My Ignore #
 #############

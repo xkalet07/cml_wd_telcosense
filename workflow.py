@@ -43,7 +43,7 @@ Contact: 211312@vutbr.cz
 # TODO: problem with ceragon_ip_10
 # DONE: implement pooling, we need shorttime-longtime pattern reckognition
 # TODO: Plots doesnt show cml ip or any id as a title
-
+# TODO: Data augmentation: noise injecting, time warp, Random scaling, mixUp/cutMix
 
 """ Imports """
 # Import python libraries
@@ -87,13 +87,15 @@ i = 24
 num_channels = 2
 sample_size = 60            # 60 keep lower than FC num of neurons
 batchsize = 128             # 128 most smooth (64)
-epochs = 50                 # 50
+epochs = 40                 # 50
 resume_epoch = 0 
-learning_rate = 0.0005      # 0.0005 - 0.001 
-dropout_rate = 0.001         # 0.04 train loss: 
-kernel_size = 3
-n_conv_filters = [24, 48, 96, 192]
-n_fc_neurons = 128          # 64 better FP, 128 better TP
+learning_rate = 0.0002      # or 0.0003
+dropout_rate = 0.001        # 0.001
+kernel_size = 3             # 3 - best performance
+n_conv_filters = [24, 48, 96, 192]     # [48, 96, 192, 384] 4% worse
+n_fc_neurons = 128          # 128 (64 better FP, 128 better TP)
+single_output = False
+shuffle = False             # use True (for testloss: 1.3)
 save_param = False
 
 
@@ -175,12 +177,15 @@ cnn_out, train_loss, test_loss = cnn_utility.cnn_train_period(cml,
                                                 kernel_size,
                                                 n_conv_filters,
                                                 n_fc_neurons,
+                                                single_output,
+                                                shuffle,
                                                 save_param
                                                 )
 
 ## CNN output
 cutoff = len(cml) % sample_size
-cml['cnn_out'] = np.append(np.repeat(cnn_out, sample_size), np.zeros(cutoff))
+cml['cnn_out'] = np.append(cnn_out, np.zeros(cutoff))
+#cml['cnn_out'] = np.append(np.repeat(cnn_out, sample_size), np.zeros(cutoff))
 
 # sort CML back from previous shuffle
 #cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)

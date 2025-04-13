@@ -46,12 +46,20 @@ sample_size = 60            # 60 keep lower than FC num of neurons
 batchsize = 128             # 128 most smooth (64)
 epochs = 40                 # 50
 resume_epoch = 0 
-learning_rate = 0.0003      # 
-dropout_rate = 0.001        # 
+learning_rate = 0.0002      # or 0.0003
+dropout_rate = 0.001        # 0.001
 kernel_size = 3             # 3 - best performance
-n_conv_filters = [24, 48, 96, 192]     # [48, 96, 192, 384] 4% worse
-n_fc_neurons = 128          # 64 better FP, 128 better TP
+n_conv_filters = [24, 48, 96, 192]     # [16, 32, 64, 128] 2% worse TPR but lower testloss -> less overfitting
+n_fc_neurons = 128          # 128 (64 better FP, 128 better TP)
+single_output = True
+shuffle = False             # use True (for testloss: 1.3)
 save_param = False
+
+# DONE: weight decay
+# DONE: dropout between conv layers
+# TODO: early stopping
+# TODO: leaky relu
+# current best: LR: 0.0003, 0.04809212237596512, 2.229833245277405, 0.8465793304221252, 0.09762251334303734
 
 """ Function definitions """
 
@@ -88,6 +96,8 @@ for cml in [cml]:
                                             kernel_size,
                                             n_conv_filters,
                                             n_fc_neurons,
+                                            single_output,
+                                            shuffle,
                                             save_param
                                             )
 
@@ -107,7 +117,7 @@ for cml in [cml]:
         results.append(cml_res)
     
     df = pd.DataFrame(results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
-    df.to_csv('results/results_LR_scheduler.csv')     # +datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    df.to_csv('results/results.csv')     # +datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     mean_results.append(np.mean(results[1:],0))
 df = pd.DataFrame(mean_results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
 df.to_csv('results/mean_repeat.csv')
