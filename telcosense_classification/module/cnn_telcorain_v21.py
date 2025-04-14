@@ -66,8 +66,8 @@ class ConvBlock(nn.Module):
 
         self.init_weight()
         
-        self.act1 = nn.LeakyReLU()
-        self.act2 = nn.LeakyReLU()
+        self.act1 = nn.ReLU()
+        self.act2 = nn.ReLU()
 
     def init_weight(self):
         init_layer(self.conv1)

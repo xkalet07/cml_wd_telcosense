@@ -38,7 +38,7 @@ from telcosense_classification import preprocess_utility
 
 """ Constant Variable definitions """
 
-dir = 'TelcoRain/merged_data_preprocessed_long/1s10/'
+#dir = 'TelcoRain/merged_data_preprocessed_long/1s10/'
 #dir = 'TelcoRain/evaluating_dataset/'   # directory containing 10 preprocessed CMLs across technologies
 
 # Training CNN parameters
@@ -59,31 +59,33 @@ save_param = False
 # DONE: weight decay
 # DONE: dropout between conv layers
 # TODO: early stopping
-# TODO: leaky relu
+# DONE: leaky relu
 
 """ Function definitions """
 
 
 """ Main """
 
-## LOADING DATA 
-file_list = os.listdir(dir)
-
-ds = []
-for i in range(len(file_list)):
-    cmli = pd.read_csv(dir+file_list[i])
-    ds.append(cmli)
-
-cml = pd.concat(ds, ignore_index=True) 
-
-cml = preprocess_utility.shuffle_dataset(cml, segment_size = batchsize*sample_size)
 
 
 # load x cml at once
 cnn_wd_threshold = 0.5
 mean_results = [['train_loss', 'test_loss', 'TP', 'FP']]
 ## TRAINING sample
-for cml in [cml]:
+for technology in ['summit', 'summit_bt', '1s10', 'ceragon_ip_20']:
+    ## LOADING DATA 
+    dir = 'TelcoRain/merged_data_preprocessed/'+technology+'/'
+    file_list = os.listdir(dir)
+
+    ds = []
+    for i in range(10):
+        cmli = pd.read_csv(dir+file_list[i])
+        ds.append(cmli)
+
+    cml = pd.concat(ds, ignore_index=True) 
+
+    cml = preprocess_utility.shuffle_dataset(cml, segment_size = batchsize*sample_size)
+
     results = [['train_loss', 'test_loss', 'TP', 'FP']]
     for param in range(10):
         cnn_out, train_loss, test_loss = cnn_utility.cnn_train_period(cml, 
@@ -118,7 +120,7 @@ for cml in [cml]:
         results.append(cml_res)
     
     df = pd.DataFrame(results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
-    df.to_csv('results/results.csv')     # +datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    df.to_csv('results/results'+technology+'.csv')     # +datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     mean_results.append(np.mean(results[1:],0))
 df = pd.DataFrame(mean_results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
 df.to_csv('results/mean_repeat.csv')
