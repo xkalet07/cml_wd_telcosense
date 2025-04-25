@@ -74,9 +74,9 @@ from telcosense_classification import plot_utility
 
 """ Constant Variable definitions """
 
-technology = '1s10'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
+technology = 'summit'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
 dir = 'TelcoRain/merged_data/'
-i = 20
+i = 10
 # SUMMIT (0,102)    # problematic/weird: 6, 12, 28, 30, 36, 54, 62, 68, 74, 76, 94, 96     # nice:  78, ideal showcase:  100, 16,2 
 # SUMMIT_BT (0,32)  # showcase: 12,24,26,28
 # ceragon_ip_10 (4) # doesnt work so far
@@ -87,7 +87,7 @@ i = 20
 num_channels = 2
 sample_size = 60            # 60 keep lower than FC num of neurons
 batchsize = 128             # 128 most smooth (64)
-epochs = 40                 # 50
+epochs = 10                 # 50
 resume_epoch = 0 
 learning_rate = 0.0002      # or 0.0003
 dropout_rate = 0.001        # 0.001
@@ -98,7 +98,7 @@ single_output = True
 shuffle = False             # use True (for testloss: 1.3)
 save_param = False
 
-
+'''
 # constant parameters
 upsampled_n_times = 20
 
@@ -144,16 +144,30 @@ cml = preprocess_utility.ref_preprocess(cml,
 
 ## CLASS BALANCE
 cml = preprocess_utility.balance_wd_classes(cml,600)
+'''
+## -------------------------
+## already preprocessed data
+dir = 'TelcoRain/evaluating_dataset_short/'
+#dir = 'TelcoRain/merged_data_preprocessed_short/1s10/'
+file_list = os.listdir(dir)
+
+ds = []
+for i in range(len(file_list)):
+    cmli = pd.read_csv(dir+file_list[i])
+    ds.append(cmli)
+
+cml = pd.concat(ds, ignore_index=True) 
+
 
 ## PLOT
 #plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
 
 ## SHUFFLE DATASET
-#cml = preprocess_utility.shuffle_dataset(cml, segment_size = 20000)
+cml = preprocess_utility.shuffle_dataset(cml, segment_size = 20000)
 
 ## TRAINING
 cnn_wd_threshold = 0.5
-cnn_out, train_loss, test_loss = cnn_utility.cnn_train_period(cml, 
+cnn_out, train_loss, test_loss = cnn_utility.cnn_train(cml, 
                                                 num_channels,
                                                 sample_size,
                                                 batchsize, 
@@ -176,8 +190,6 @@ cutoff = len(cml) % sample_size
 #for single output
 cml['cnn_out'] = np.append(np.repeat(cnn_out, sample_size), np.zeros(cutoff))
 
-# sort CML back from previous shuffle
-#cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
 
 cml['cnn_wd'] = cml.cnn_out > cnn_wd_threshold
 
@@ -188,10 +200,18 @@ cml['false_alarm'] = cml.cnn_wd & ~cml.ref_wd
 # cnn missed wet
 cml['missed_wet'] = ~cml.cnn_wd & cml.ref_wd
 
+print('wholeset')
 print('TP: ' + str(sum(cml.true_wet)/sum(cml.ref_wd)))
 print('FP: ' + str(sum(cml.false_alarm)/sum(cml.ref_wd)))
 print('FN: ' + str(sum(cml.missed_wet)/sum(cml.ref_wd)))
 
+print('testset')
+print('TP: ' + str(sum(cml.true_wet[int(len(cml.true_wet)*0.8):])/sum(cml.ref_wd[int(len(cml.true_wet)*0.8):])))
+print('FP: ' + str(sum(cml.false_alarm[int(len(cml.true_wet)*0.8):])/sum(cml.ref_wd[int(len(cml.true_wet)*0.8):])))
+print('FN: ' + str(sum(cml.missed_wet[int(len(cml.true_wet)*0.8):])/sum(cml.ref_wd[int(len(cml.true_wet)*0.8):])))
+
+# sort CML back from previous shuffle
+#cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
 
 ## PLOT
 plot_utility.plot_cnn_classification(cml, cnn_wd_threshold)

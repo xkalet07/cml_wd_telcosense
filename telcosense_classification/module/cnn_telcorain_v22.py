@@ -113,6 +113,10 @@ class cnn_class(nn.Module):
         self.cb2 = ConvBlock(self.kernelsize, self.n_filters[0], self.n_filters[1], self.dropout)
         self.cb3 = ConvBlock(self.kernelsize, self.n_filters[1], self.n_filters[2], self.dropout)
         self.cb4 = ConvBlock(self.kernelsize, self.n_filters[2], self.n_filters[3], self.dropout)
+        #self.bnc1 = nn.BatchNorm1d(self.n_filters[1]) # !!!!!!!!!!!!!!!!!!!!!!!!!!
+        #self.bnc2 = nn.BatchNorm1d(self.n_filters[3]) # !!!!!!!!!!!!!!!!!!!!!!!!!!
+        #init_bn(self.bnc1)
+        #init_bn(self.bnc2)
         
         ### Fully Connected part 
         self.act = nn.ReLU()
@@ -122,18 +126,26 @@ class cnn_class(nn.Module):
         self.drop2 = nn.Dropout(self.dropout)
         self.denseOut = nn.Linear(self.n_fc_neurons, self.output)                     # single value on the output
         self.final_act = nn.Sigmoid()                                  # Sigmoid function to add nonlinearity for output classification as 1/0
-           
+        #self.bnf1 = nn.BatchNorm1d(self.n_fc_neurons) # !!!!!!!!!!!!!!!!!!!!!!!!!!
+        #init_bn(self.bnf1)
+    
     def forward(self, x):
-        ### CONV part
+        
         x = self.cb1(x, pool_size=2)
+        
         x = self.cb2(x, pool_size=2)
+        #x = self.bnc1(x)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         x = self.cb3(x, pool_size=2)
+        
         x = self.cb4(x, pool_size=2)
+        #x = self.bnc2(x)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         x = torch.mean(x,dim=-1)
         
         ### FC part
         x = self.act(self.dense1(x))
         x = self.drop1(x)
+        #x = self.bnf1(x)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        
         x = self.act(self.dense2(x))
         x = self.drop2(x)
         x = self.final_act(self.denseOut(x))

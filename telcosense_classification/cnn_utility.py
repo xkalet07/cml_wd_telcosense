@@ -36,8 +36,8 @@ import datetime
 
 
 # Import own modules
-import telcosense_classification.module.cnn_telcorain_v21 as cnn_sing
-import telcosense_classification.module.cnn_telcorain_v11 as cnn_cont
+import telcosense_classification.module.cnn_telcorain_v21 as cnn
+import telcosense_classification.module.cnn_orig as cnn_orig
 
 """ Variable definitions """
 
@@ -48,7 +48,7 @@ import telcosense_classification.module.cnn_telcorain_v11 as cnn_cont
 #           or output size = sample size. input parameter
 # TODO: patch sample size output testloss is NaN
 
-def cnn_train_period(ds:pd.DataFrame, 
+def cnn_train(ds:pd.DataFrame, 
                     num_channels = 2,
                     sample_size = 100, 
                     batchsize = 20, 
@@ -128,7 +128,7 @@ def cnn_train_period(ds:pd.DataFrame,
 
 
 
-    k_train = 0.8     # fraction of training data
+    k_train = 0.5     # fraction of training data
     train_size = int(len(trsl)*k_train/batchsize)*batchsize
 
     # Storing as tensors [2]
@@ -145,18 +145,23 @@ def cnn_train_period(ds:pd.DataFrame,
     testloader = torch.utils.data.DataLoader(testset, batchsize, shuffle)
 
     # CNN model
-    model = cnn_sing.cnn_class(channels=num_channels, 
-                                sample_size=sample_size, 
-                                kernel_size=kernel_size, 
-                                dropout = dropout_rate, 
-                                n_fc_neurons = n_fc_neurons,
-                                n_filters = n_conv_filters,
-                                single_output=single_output
-                                )
+    if 1:
+        model = cnn.cnn_class(channels=num_channels, 
+                        sample_size=sample_size, 
+                        kernel_size=kernel_size, 
+                        dropout = dropout_rate, 
+                        n_fc_neurons = n_fc_neurons,
+                        n_filters = n_conv_filters,
+                        single_output=single_output
+                        )
+    else:
+        model = cnn_orig.cnn_class()
+
     
     # used optimizer and learning rate scheduler
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-4)  # weight decay: chatgpt, +1 % TP, lower testloss and FP
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)         # each 10 epoch multiply lr by 0.5
+    #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5)    # reduces lr by 0.5 if no improvement
     early_stopping = EarlyStopping(patience=5, min_delta=0.001)
 
     # if resuming training
@@ -171,6 +176,7 @@ def cnn_train_period(ds:pd.DataFrame,
     cnn_prediction = []
     for epoch in range(resume_epoch, epochs):
         # training
+        model.train()
         train_losses = []
         for inputs, targets in tqdm(trainloader):
             optimizer.zero_grad()
@@ -181,16 +187,15 @@ def cnn_train_period(ds:pd.DataFrame,
             if epoch == epochs-1: cnn_prediction = cnn_prediction+pred.tolist()
             
             # calculating the loss function        
-            if ~np.isnan(pred.tolist()).any():              # exclude NaN values for loss calculation
-                loss = nn.BCELoss()(pred, targets)          # BCE = binary cross entropy
-                loss.backward()
-
+            loss = nn.BCELoss()(pred, targets)          # BCE = binary cross entropy
+            loss.backward()
             optimizer.step()
             train_losses.append(loss.detach().numpy())
-        scheduler.step()
+        scheduler.step(loss)
         loss_dict['train']['loss'].append(np.mean(train_losses))
     
         # testing
+        model.eval()
         test_losses = []
         with torch.no_grad():
             for inputs, targets in tqdm(testloader):
@@ -200,9 +205,9 @@ def cnn_train_period(ds:pd.DataFrame,
                 # getting the output
                 if epoch == epochs-1: cnn_prediction = cnn_prediction+pred.tolist()
                 
-                if np.isnan(pred.tolist()).any():            # exclude NaN values for loss calculation
-                    targets = targets[~np.isnan(pred.tolist())]
-                    pred = pred[~np.isnan(pred.tolist())]
+                #if np.isnan(pred.tolist()).any():            # exclude NaN values for loss calculation
+                #    targets = targets[~np.isnan(pred.tolist())]
+                #    pred = pred[~np.isnan(pred.tolist())]
                 loss = nn.BCELoss()(pred, targets)
 
                 # early stopping implementation: https://chatgpt.com/share/67fb88df-05f4-800a-b4ed-576cff8743bd
@@ -212,8 +217,8 @@ def cnn_train_period(ds:pd.DataFrame,
                 #    print("Early stopping triggered.")
                 #    break
 
-                if ~np.isnan(loss.tolist()).any():           # this case prevents appending nan loss to lossfunc array
-                    test_losses.append(loss.detach().numpy())
+                #if ~np.isnan(loss.tolist()).any():           # this case prevents appending nan loss to lossfunc array
+                test_losses.append(loss.detach().numpy())
             loss_dict['test']['loss'].append(np.mean(test_losses))
             
         # learning curve

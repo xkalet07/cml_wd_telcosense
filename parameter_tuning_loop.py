@@ -47,7 +47,7 @@ sample_size = 60            # 60 keep lower than FC num of neurons
 batchsize = 128             # 128 most smooth (64)
 epochs = 40                 # 50
 resume_epoch = 0 
-learning_rate = 0.0002      # or 0.0003
+learning_rate = 0.0002      # 0.0002 or 0.0003
 dropout_rate = 0.001        # 0.001
 kernel_size = 3             # 3 - best performance
 n_conv_filters = [24, 48, 96, 192]     # [16, 32, 64, 128] 2% worse TPR but lower testloss -> less overfitting
@@ -65,30 +65,31 @@ save_param = False
 
 
 """ Main """
+dir = 'TelcoRain/evaluating_dataset_short/'
+#dir = 'TelcoRain/merged_data_preprocessed_short/1s10/'
+file_list = os.listdir(dir)
 
+ds = []
+for i in range(len(file_list)):
+    cmli = pd.read_csv(dir+file_list[i])
+    ds.append(cmli)
+
+cml = pd.concat(ds, ignore_index=True) 
+
+#cml = preprocess_utility.shuffle_dataset(cml, segment_size = batchsize*sample_size)
 
 
 # load x cml at once
 cnn_wd_threshold = 0.5
 mean_results = [['train_loss', 'test_loss', 'TP', 'FP']]
 ## TRAINING sample
-for technology in ['summit', 'summit_bt', '1s10', 'ceragon_ip_20']:
+for cml in [cml]:
     ## LOADING DATA 
-    dir = 'TelcoRain/merged_data_preprocessed/'+technology+'/'
-    file_list = os.listdir(dir)
-
-    ds = []
-    for i in range(10):
-        cmli = pd.read_csv(dir+file_list[i])
-        ds.append(cmli)
-
-    cml = pd.concat(ds, ignore_index=True) 
-
-    cml = preprocess_utility.shuffle_dataset(cml, segment_size = batchsize*sample_size)
+    
 
     results = [['train_loss', 'test_loss', 'TP', 'FP']]
     for param in range(10):
-        cnn_out, train_loss, test_loss = cnn_utility.cnn_train_period(cml, 
+        cnn_out, train_loss, test_loss = cnn_utility.cnn_train(cml, 
                                             num_channels,
                                             sample_size,
                                             batchsize, 
@@ -114,13 +115,18 @@ for technology in ['summit', 'summit_bt', '1s10', 'ceragon_ip_20']:
         true_wet = cnn_wd & ref_wd 
         false_alarm = cnn_wd & ~ref_wd
 
+        print('testset')
+        print('TP: ' + str(sum(true_wet[int(len(true_wet)*0.8):])/sum(ref_wd[int(len(true_wet)*0.8):])))
+        print('FP: ' + str(sum(false_alarm[int(len(true_wet)*0.8):])/sum(ref_wd[int(len(true_wet)*0.8):])))
+        
+
         TP = sum(true_wet)/sum(ref_wd)
         FP = sum(false_alarm)/sum(ref_wd)
         cml_res = [train_loss, test_loss, TP, FP]
         results.append(cml_res)
     
     df = pd.DataFrame(results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
-    df.to_csv('results/results'+technology+'.csv')     # +datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    df.to_csv('results/results.csv')     # +datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     mean_results.append(np.mean(results[1:],0))
 df = pd.DataFrame(mean_results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
 df.to_csv('results/mean_repeat.csv')
@@ -135,7 +141,7 @@ for learning_rate in [0.0001,0.0005,0.001,0.002,0.003]:
         ## TRAINING sample
         results = [['train_loss', 'test_loss', 'TP', 'FP']]
         for i in range(len(file_list)):
-            cnn_out, train_loss, test_loss = cnn_utility.cnn_train_period(ds[i], 
+            cnn_out, train_loss, test_loss = cnn_utility.cnn_train(ds[i], 
                                                     num_channels,
                                                     sample_size,
                                                     batchsize, 

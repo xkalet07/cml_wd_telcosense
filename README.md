@@ -46,6 +46,7 @@ TODO: This approach should bring better learning performance. For longer wet/dry
 - dropout layers in convolutional layers: needs to be low value, same as for FC: dropout=0.001. Same TPR=0.86, lower testloss of 1.42.  
 - LeakyReLU has worse performance than classic ReLU, of TPR-2%, FPR+2%, and both losses worse.  
 - dataset balancing: Excluding long dry periods helps memory capacity during training, and balances wet and dry classes in the cml signal. Warning: not using wd balance leads to ilusion of lower losses, but real performance is worse. Keeping long dry periods doesnt prevent overfitting.  
+- LR scheduler has positive results. StepLR is better than ReduceLROnPlateau  
 
 ## RADOLAN and Pycomlink data 
 
