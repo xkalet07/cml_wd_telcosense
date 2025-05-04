@@ -37,7 +37,7 @@ import datetime
 
 # Import own modules
 import telcosense_classification.module.cnn_orig as cnn_orig
-import telcosense_classification.module.cnn_telcorain_v21 as cnn_my
+import telcosense_classification.module.cnn_telcorain_v22 as cnn_my
 
 
 def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, batchsize = 20, save_param = False):
@@ -79,9 +79,9 @@ def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, bat
     trainloader = torch.utils.data.DataLoader(dataset, batch_size = batchsize, shuffle = False)    # shuffle the training data, once more? True
     testloader = torch.utils.data.DataLoader(testset, batch_size = batchsize, shuffle = False)
 
-    if 1:
-        model = cnn_orig.cnn_class()
     if 0:
+        model = cnn_orig.cnn_class()
+    else:
         model = cnn_my.cnn_class(channels=2, 
                             sample_size=sample_size, 
                             kernel_size=3, 
@@ -101,6 +101,7 @@ def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, bat
     # training loop
     for epoch in range(resume_epoch, epochs):
         # training
+        model.train()
         train_losses = []
         for inputs, targets in tqdm(trainloader):
             optimizer.zero_grad()
@@ -114,6 +115,7 @@ def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, bat
         loss_dict['train']['loss'].append(np.mean(train_losses))
 
         # testing
+        model.eval()
         test_losses = []
         with torch.no_grad():
             for inputs, targets in tqdm(testloader):

@@ -36,7 +36,7 @@ import datetime
 
 
 # Import own modules
-import telcosense_classification.module.cnn_telcorain_v21 as cnn
+import telcosense_classification.module.cnn_telcorain_v22 as cnn
 import telcosense_classification.module.cnn_orig as cnn_orig
 
 """ Variable definitions """
@@ -128,7 +128,7 @@ def cnn_train(ds:pd.DataFrame,
 
 
 
-    k_train = 0.5     # fraction of training data
+    k_train = 0.8     # fraction of training data
     train_size = int(len(trsl)*k_train/batchsize)*batchsize
 
     # Storing as tensors [2]
@@ -205,9 +205,6 @@ def cnn_train(ds:pd.DataFrame,
                 # getting the output
                 if epoch == epochs-1: cnn_prediction = cnn_prediction+pred.tolist()
                 
-                #if np.isnan(pred.tolist()).any():            # exclude NaN values for loss calculation
-                #    targets = targets[~np.isnan(pred.tolist())]
-                #    pred = pred[~np.isnan(pred.tolist())]
                 loss = nn.BCELoss()(pred, targets)
 
                 # early stopping implementation: https://chatgpt.com/share/67fb88df-05f4-800a-b4ed-576cff8743bd
@@ -217,7 +214,6 @@ def cnn_train(ds:pd.DataFrame,
                 #    print("Early stopping triggered.")
                 #    break
 
-                #if ~np.isnan(loss.tolist()).any():           # this case prevents appending nan loss to lossfunc array
                 test_losses.append(loss.detach().numpy())
             loss_dict['test']['loss'].append(np.mean(test_losses))
             

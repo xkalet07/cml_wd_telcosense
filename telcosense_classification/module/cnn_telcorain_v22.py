@@ -31,7 +31,7 @@ def init_layer(layer):
     
 def init_bn(bn):
     # Initialize a Batchnorm layer
-    bn.bias.data.fill_(0.)
+    bn.bias.data.zero_()
     bn.weight.data.fill_(1.)  
 
 def output_size(sample_size:int, single_output=True):
@@ -58,15 +58,8 @@ class ConvBlock(nn.Module):
         
         # https://github.com/qiuqiangkong/audioset_tagging_cnn/blob/master/pytorch/models.py
         self.bn1 = nn.BatchNorm1d(self.channels_out)
-        """, 
-                                  eps=1e-05, 
-                                  momentum=0.1, 
-                                  affine=True, 
-                                  track_running_stats=True, 
-                                  device=None, 
-                                  dtype=None) """
         self.bn2 = nn.BatchNorm1d(self.channels_out)
-
+ 
         self.drop1 = nn.Dropout(p=self.dropout)
         self.drop2 = nn.Dropout(p=self.dropout)
 
@@ -148,6 +141,5 @@ class cnn_class(nn.Module):
         
         x = self.act(self.dense2(x))
         x = self.drop2(x)
-        x = self.final_act(self.denseOut(x))
-
+        x = self.final_act(self.denseOut(x))    
         return x

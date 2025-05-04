@@ -86,10 +86,10 @@ i = 10
 # Training CNN parameters
 num_channels = 2
 sample_size = 60            # 60 keep lower than FC num of neurons
-batchsize = 128             # 128 most smooth (64)
-epochs = 10                 # 50
+batchsize = 256             # 128 most smooth (64)
+epochs = 30                 # 50
 resume_epoch = 0 
-learning_rate = 0.0002      # or 0.0003
+learning_rate = 0.0002      # 0.0002 or 0.0003
 dropout_rate = 0.001        # 0.001
 kernel_size = 3             # 3 - best performance
 n_conv_filters = [24, 48, 96, 192]     # [48, 96, 192, 384] 4% worse
@@ -211,7 +211,7 @@ print('FP: ' + str(sum(cml.false_alarm[int(len(cml.true_wet)*0.8):])/sum(cml.ref
 print('FN: ' + str(sum(cml.missed_wet[int(len(cml.true_wet)*0.8):])/sum(cml.ref_wd[int(len(cml.true_wet)*0.8):])))
 
 # sort CML back from previous shuffle
-#cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
+cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
 
 ## PLOT
 plot_utility.plot_cnn_classification(cml, cnn_wd_threshold)
