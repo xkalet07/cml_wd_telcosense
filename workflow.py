@@ -24,19 +24,15 @@ Contact: 211312@vutbr.cz
 # TODO: load cml B using its IP, not i+1
 # DONE: filtered metadata is duplicative. each cml is there 2 times identically
 # tip: cmlAip and cmlBip are next to each other and cmlBip is always cmlAip+1
-# TODO: copy data into NaN gaps from adjacent cml #cml['rsl_A'] = cml.rsl_A + cml.rsl_B.where(np.isnan(cml.rsl_A))
-# TODO: copy adjacent data, if large chunk of rsl is missing: 1s10: 12
 # DONE: delete few values around step
-# TODO: better interpolation: https://stackoverflow.com/questions/30533021/interpolate-or-extrapolate-only-small-gaps-in-pandas-dataframe
 # DONE: detect uptime resets
+# TODO: some CML still has NaN gaps, find it and exclude the NaN samples.
 # DONE: dry 10min segments during light rainfall
 # tip: Summit technology rsl is [-dB]
 # TODO: Feed cnn constant metadata such as frequency, technology, length...
 # DONE: Feed cnn the cml temperature -> -10% worse TPR with this CNN model
 # DONE: If uptime is constant drop values
-# TODO: spikes remaining around step after supressing the step in preprocessing (especially 1s10)
 # tip: all datetime is in UTC time
-# TODO: Different preprocess tresholds for different cml technologies
 # DONE: period of trsl == reference wet/dry. Meaning, for each trsl point there will be wet/dry flag predicted.  
 # TODO: Forward and backward memory implementation will be needed.  
 # TODO: This approach should bring better learning performance. For longer wet/dry periods there are ocasions, where the period is wet, but trsl shows rain pattern for only fraction of the period.  
@@ -74,31 +70,36 @@ from telcosense_classification import plot_utility
 
 """ Constant Variable definitions """
 
-technology = 'summit'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
+technology = 'ceragon_ip_20'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
 dir = 'TelcoRain/merged_data/'
-i = 10
+i = 0
 # SUMMIT (0,102)    # problematic/weird: 6, 12, 28, 30, 36, 54, 62, 68, 74, 76, 94, 96     # nice:  78, ideal showcase:  100, 16,2 
+# 1dB, 1°C
 # SUMMIT_BT (0,32)  # showcase: 12,24,26,28
+# 1dB, 1°C
 # ceragon_ip_10 (4) # doesnt work so far
+# 1dB, 1°C
 # ceragon_ip_20 (42)# problematic: 2, 10, 14(uptime cons), 28, 34(symetric), 40(step, thr=210) nice: 8,16, overall higher peaks
+# 1dB, 1°C
 # 1s10 (26)         # nice:0,2, problematic:4, 12, 14, 16,18,22, 24 overall more extreme peaks
+# 0.01dB, 0.01°C
 
 # Training CNN parameters
 num_channels = 2
 sample_size = 60            # 60 keep lower than FC num of neurons
 batchsize = 256             # 128 most smooth (64)
-epochs = 30                 # 50
+epochs = 15                 # 50
 resume_epoch = 0 
 learning_rate = 0.0002      # 0.0002 or 0.0003
 dropout_rate = 0.001        # 0.001
 kernel_size = 3             # 3 - best performance
-n_conv_filters = [24, 48, 96, 192]     # [48, 96, 192, 384] 4% worse
-n_fc_neurons = 128          # 128 (64 better FP, 128 better TP)
+n_conv_filters = [16, 32, 64, 128]#, 96, 192]     # [48, 96, 192, 384] 4% worse
+n_fc_neurons = 64#128          # 128 (64 better FP, 128 better TP)
 single_output = True
 shuffle = False             # use True (for testloss: 1.3)
 save_param = False
 
-'''
+
 # constant parameters
 upsampled_n_times = 20
 
@@ -126,13 +127,14 @@ metadata = metadata_all.loc[metadata_all['IP_address_A'] == cml_A_ip]
 # Loading cml
 cml = data_loading_utility.load_cml(dir, technology, i)
 
+
 ## PREPROCESS
 cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10, 
                 suppress_step = True, conv_threshold = 250.0, 
                 std_method = True, window_size = 10, std_threshold = 5.0, 
                 z_method = True, z_threshold = 10.0,
                 reset_detect=True,
-                subtract_median=True
+                subtract_median=False
                 )
 
 ## WD REFERENCE
@@ -142,13 +144,16 @@ cml = preprocess_utility.ref_preprocess(cml,
                                         )
 
 
+plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
+
+
 ## CLASS BALANCE
 cml = preprocess_utility.balance_wd_classes(cml,600)
 '''
 ## -------------------------
 ## already preprocessed data
-dir = 'TelcoRain/evaluating_dataset_short/'
-#dir = 'TelcoRain/merged_data_preprocessed_short/1s10/'
+#dir = 'TelcoRain/evaluating_dataset_short/'
+dir = 'TelcoRain/merged_data_preprocessed_short/1s10/'
 file_list = os.listdir(dir)
 
 ds = []
@@ -157,7 +162,7 @@ for i in range(len(file_list)):
     ds.append(cmli)
 
 cml = pd.concat(ds, ignore_index=True) 
-
+'''
 
 ## PLOT
 #plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp'])
@@ -211,7 +216,7 @@ print('FP: ' + str(sum(cml.false_alarm[int(len(cml.true_wet)*0.8):])/sum(cml.ref
 print('FN: ' + str(sum(cml.missed_wet[int(len(cml.true_wet)*0.8):])/sum(cml.ref_wd[int(len(cml.true_wet)*0.8):])))
 
 # sort CML back from previous shuffle
-cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
+#cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
 
 ## PLOT
 plot_utility.plot_cnn_classification(cml, cnn_wd_threshold)

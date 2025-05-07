@@ -43,16 +43,51 @@ metadata_all = metadata_all.drop_duplicates()         # clean duplicative rows
 ## analyze stationary CML parameters
 # CML length, frequency, polarization, gauge distance from cmlA, cmlB, altitude, height above terrain
 # frequency_A,frequency_B,distance,polarization,altitude_A,height_above_terrain_A,height_above_terrain_B,distance_A,distance_B,gauge_elevation
-frequency = metadata_all.frequency_A
+frequency = metadata_all.frequency_A/1000
+'''
+fig, ax = plt.subplots(figsize = (6,4))
+plt.hist(np.append(metadata_all.frequency_A.values,metadata_all.frequency_B.values),bins=20)
+ax.set_xlabel('CML frequency [MHz]')
+ax.set_xlim(0, 90000)
+plt.yscale('log')
+plt.show()
+'''
+'''
+fig, ax = plt.subplots(figsize=(4.5,4.5))
 
-plt.hist(np.append(metadata_all.frequency_A.values,metadata_all.frequency_B.values))
-plt.show() 
+num_bins = 20
+n, bins, patches = ax.hist(frequency, bins=num_bins, edgecolor='#1565aa', linewidth=0.5)
 
-plt.hist(metadata_all.polarization)
-plt.show() 
+# Add numbers on the top of each bar
+for i in range(num_bins):
+    if n[i] > 0:
+        ax.text(bins[i]+2, n[i]*1.2 , str(int(n[i])), fontsize=10, ha='center')
+ax.set_xlabel('CML frequency f [GHz]')
+#ax.set_xlim(0, 90000)
+ax.set_ylim(1, 300)
+plt.yscale('log')
+plt.show()
+'''
 
-plt.hist(metadata_all.distance)
-plt.show() 
+
+
+
+#plt.hist(metadata_all.polarization,bins=20)
+#plt.show() 
+
+length = metadata_all.distance
+fig, ax = plt.subplots(figsize=(4.5,4.5))
+n, bins, patches = ax.hist(length, bins=10, edgecolor='#1565aa', linewidth=0.5)
+
+# Add numbers on the top of each bar
+for i in range(10):
+    if n[i] > 0:
+        ax.text(bins[i]+140, n[i]+1 , str(int(n[i]/2)), fontsize=10, ha='center')
+ax.set_xlabel('CML length L [m]')
+#ax.set_xlim(0, 90000)
+ax.set_ylim(0, 40)
+#plt.yscale('log')
+plt.show()
 
 
 ## TRSL statistic analysis

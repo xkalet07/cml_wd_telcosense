@@ -64,7 +64,7 @@ ref_set = preprocess_utility.ref_preprocess(ref_set, interp_max_gap='20min', res
 ds = preprocess_utility.build_dataset(cml_set, ref_set, sample_size, num_cmls)
 
 ## TRAINING
-cnn_utility.cnn_train(ds, sample_size, epochs=30, batchsize=50, save_param=False)
+cnn_utility.cnn_train(ds, sample_size, epochs=30, batchsize=int(128), save_param=False)
 
 ## CLASSIFICATION
 #cnn_prediction = cnn_utility.cnn_classify(ds, sample_size=10, batchsize=50)

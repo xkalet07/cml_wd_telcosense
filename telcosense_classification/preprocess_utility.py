@@ -27,6 +27,15 @@ from scipy.signal import find_peaks
 
 # Import own modules
 
+""" Notes """
+# TODO: copy data into NaN gaps from adjacent cml #cml['rsl_A'] = cml.rsl_A + cml.rsl_B.where(np.isnan(cml.rsl_A))
+# TODO: copy adjacent data, if large chunk of rsl is missing: 1s10: 12
+# TODO: better interpolation: https://stackoverflow.com/questions/30533021/interpolate-or-extrapolate-only-small-gaps-in-pandas-dataframe
+# TODO: some CML still has NaN gaps, find it and exclude the NaN samples.
+# TODO: spikes remaining around step after supressing the step in preprocessing (especially 1s10)
+# TODO: Different preprocess tresholds for different cml technologies
+# TODO: Data augmentation: noise injecting, time warp, Random scaling, mixUp/cutMix
+
 
 """ Variable definitions """
 

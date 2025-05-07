@@ -27,7 +27,6 @@ import torch.nn.functional as F
 def init_layer(layer):
     # Initialize a Convolutional layer
     nn.init.xavier_uniform_(layer.weight)
-
     
 def init_bn(bn):
     # Initialize a Batchnorm layer
@@ -57,8 +56,8 @@ class ConvBlock(nn.Module):
         self.conv2 = nn.Conv1d(self.channels_out, self.channels_out, self.kernelsize, padding='same')
         
         # https://github.com/qiuqiangkong/audioset_tagging_cnn/blob/master/pytorch/models.py
-        self.bn1 = nn.BatchNorm1d(self.channels_out)
-        self.bn2 = nn.BatchNorm1d(self.channels_out)
+        self.bn1 = nn.BatchNorm1d(self.channels_out,track_running_stats=False)      #track_running_stats=False
+        self.bn2 = nn.BatchNorm1d(self.channels_out,track_running_stats=False)
  
         self.drop1 = nn.Dropout(p=self.dropout)
         self.drop2 = nn.Dropout(p=self.dropout)
@@ -78,16 +77,16 @@ class ConvBlock(nn.Module):
         x = input
         
         x = self.conv1(x)
-        x = self.bn1(x)     
+        #x = self.bn1(x)     
         x = self.act1(x)
-        x = self.drop1(x)
+        #x = self.drop1(x)
 
         x = self.conv2(x)
-        x = self.bn2(x)            
+        #x = self.bn2(x)            
         x = self.act2(x)
-        x = self.drop2(x)
+        #x = self.drop2(x)
 
-        x = F.max_pool1d(x, kernel_size=pool_size)
+        #x = F.max_pool1d(x, kernel_size=pool_size)
 
         return x
 
@@ -106,11 +105,16 @@ class cnn_class(nn.Module):
         self.cb2 = ConvBlock(self.kernelsize, self.n_filters[0], self.n_filters[1], self.dropout)
         self.cb3 = ConvBlock(self.kernelsize, self.n_filters[1], self.n_filters[2], self.dropout)
         self.cb4 = ConvBlock(self.kernelsize, self.n_filters[2], self.n_filters[3], self.dropout)
-        #self.bnc1 = nn.BatchNorm1d(self.n_filters[1]) # !!!!!!!!!!!!!!!!!!!!!!!!!!
-        #self.bnc2 = nn.BatchNorm1d(self.n_filters[3]) # !!!!!!!!!!!!!!!!!!!!!!!!!!
-        #init_bn(self.bnc1)
+        self.bnc1 = nn.BatchNorm1d(self.n_filters[0], eps=0, momentum=0.1, affine=True, track_running_stats=True)#,track_running_stats=False) # !!!!!!!!!!!!!!!!!!!!!!!!!!
+        #self.bnc2 = nn.BatchNorm1d(self.n_filters[1]) # !!!!!!!!!!!!!!!!!!!!!!!!!!
+        #self.bnc3 = nn.BatchNorm1d(self.n_filters[2]) # !!!!!!!!!!!!!!!!!!!!!!!!!!
+        #self.bnc4 = nn.BatchNorm1d(self.n_filters[3]) # !!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        init_bn(self.bnc1)
         #init_bn(self.bnc2)
-        
+        #init_bn(self.bnc3)
+        #init_bn(self.bnc4)
+
         ### Fully Connected part 
         self.act = nn.ReLU()
         self.dense1 = nn.Linear(self.n_filters[3], self.n_fc_neurons)
@@ -119,27 +123,28 @@ class cnn_class(nn.Module):
         self.drop2 = nn.Dropout(self.dropout)
         self.denseOut = nn.Linear(self.n_fc_neurons, self.output)                     # single value on the output
         self.final_act = nn.Sigmoid()                                  # Sigmoid function to add nonlinearity for output classification as 1/0
-        #self.bnf1 = nn.BatchNorm1d(self.n_fc_neurons) # !!!!!!!!!!!!!!!!!!!!!!!!!!
-        #init_bn(self.bnf1)
+        self.bnf1 = nn.BatchNorm1d(self.n_fc_neurons) # !!!!!!!!!!!!!!!!!!!!!!!!!!
+        init_layer(self.dense1)
+        init_layer(self.dense2)
+        init_layer(self.denseOut)
+        init_bn(self.bnf1)
     
     def forward(self, x):
-        
-        x = self.cb1(x, pool_size=2)
-        
-        x = self.cb2(x, pool_size=2)
-        #x = self.bnc1(x)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        x = self.cb3(x, pool_size=2)
-        
-        x = self.cb4(x, pool_size=2)
+        ### Conv part 
+        x = self.cb1(x, pool_size=1)
+        x = self.bnc1(x)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        x = self.cb2(x, pool_size=1)
         #x = self.bnc2(x)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        x = self.cb3(x, pool_size=1)
+        #x = self.bnc3(x)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        x = self.cb4(x, pool_size=1)
+        #x = self.bnc4(x)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         x = torch.mean(x,dim=-1)
         
         ### FC part
         x = self.act(self.dense1(x))
-        x = self.drop1(x)
-        #x = self.bnf1(x)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        
+        #x = self.drop1(x)
         x = self.act(self.dense2(x))
-        x = self.drop2(x)
+        #x = self.drop2(x)
         x = self.final_act(self.denseOut(x))    
         return x

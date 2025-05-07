@@ -30,6 +30,7 @@
 ##############
 *.csv
 *.xlsx
+*.docx
 *.nc
 
 # Image files #

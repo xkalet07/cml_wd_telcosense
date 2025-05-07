@@ -37,7 +37,7 @@ import datetime
 
 # Import own modules
 import telcosense_classification.module.cnn_orig as cnn_orig
-import telcosense_classification.module.cnn_telcorain_v22 as cnn_my
+import telcosense_classification.module.cnn_telcorain_v21 as cnn_my
 
 
 def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, batchsize = 20, save_param = False):
@@ -88,7 +88,9 @@ def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, bat
                             dropout = 0.001,
                             n_fc_neurons=128
                             )
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.0002)
+        
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.0002, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
     # if resuming training
     if resume_epoch == 0:
@@ -112,6 +114,7 @@ def cnn_train(ds:xr.Dataset, sample_size:int, epochs = 20, resume_epoch = 0, bat
             loss.backward()
             optimizer.step()
             train_losses.append(loss.detach().numpy())
+            scheduler.step(loss)
         loss_dict['train']['loss'].append(np.mean(train_losses))
 
         # testing

@@ -32,6 +32,7 @@ TODO: Different preprocess tresholds for different cml technologies
 TODO: period of trsl == reference wet/dry. Meaning, for each trsl point there will be wet/dry flag predicted.  
 TODO: Forward and backward memory implementation will be needed.  
 TODO: This approach should bring better learning performance. For longer wet/dry periods there are ocasions, where the period is wet, but trsl shows rain pattern for only fraction of the period.  
+TODO: some CML still has NaN gaps, find it and exclude the NaN samples.  
 
 
 ## Hyperparameter tuning  
@@ -47,6 +48,8 @@ TODO: This approach should bring better learning performance. For longer wet/dry
 - LeakyReLU has worse performance than classic ReLU, of TPR-2%, FPR+2%, and both losses worse.  
 - dataset balancing: Excluding long dry periods helps memory capacity during training, and balances wet and dry classes in the cml signal. Warning: not using wd balance leads to ilusion of lower losses, but real performance is worse. Keeping long dry periods doesnt prevent overfitting.  
 - LR scheduler has positive results. StepLR is better than ReduceLROnPlateau  
+- It was tested that temperature included in dataset causes erratic behaviour.  
+- 
 
 ## RADOLAN and Pycomlink data 
 

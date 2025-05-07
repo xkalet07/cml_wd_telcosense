@@ -44,14 +44,14 @@ from telcosense_classification import preprocess_utility
 # Training CNN parameters
 num_channels = 2
 sample_size = 60            # 60 keep lower than FC num of neurons
-batchsize = 128             # 128 most smooth (64)
-epochs = 40                 # 50
+batchsize = 256             # 128 most smooth (64)
+epochs = 5                 # 50
 resume_epoch = 0 
 learning_rate = 0.0002      # 0.0002 or 0.0003
 dropout_rate = 0.001        # 0.001
 kernel_size = 3             # 3 - best performance
-n_conv_filters = [24, 48, 96, 192]     # [16, 32, 64, 128] 2% worse TPR but lower testloss -> less overfitting
-n_fc_neurons = 128          # 128 (64 better FP, 128 better TP)
+n_conv_filters = [16, 32, 64, 64]     # [24, 48, 48, 192][16, 32, 64, 128] 2% worse TPR but lower testloss -> less overfitting
+n_fc_neurons = 64          # 128 (64 better FP, 128 better TP)
 single_output = True
 shuffle = False             # use True (for testloss: 1.3)
 save_param = False
@@ -76,19 +76,19 @@ for i in range(len(file_list)):
 
 cml = pd.concat(ds, ignore_index=True) 
 
-#cml = preprocess_utility.shuffle_dataset(cml, segment_size = batchsize*sample_size)
-
 
 # load x cml at once
 cnn_wd_threshold = 0.5
-mean_results = [['train_loss', 'test_loss', 'TP', 'FP']]
+mean_results = [['train_loss', 'test_loss', 'TP_train', 'FP_train', 'TP_test', 'FP_test']]
 ## TRAINING sample
-for cml in [cml]:
+for cnn in [0]:
     ## LOADING DATA 
     
 
-    results = [['train_loss', 'test_loss', 'TP', 'FP']]
+    results = [['train_loss', 'test_loss', 'TP_train', 'FP_train', 'TP_test', 'FP_test']]
     for param in range(10):
+        # shuffle every loop
+        cml = preprocess_utility.shuffle_dataset(cml, segment_size = batchsize*sample_size)
         cnn_out, train_loss, test_loss = cnn_utility.cnn_train(cml, 
                                             num_channels,
                                             sample_size,
@@ -102,7 +102,8 @@ for cml in [cml]:
                                             n_fc_neurons,
                                             single_output,
                                             shuffle,
-                                            save_param
+                                            save_param,
+                                            cnn
                                             )
 
         cutoff = len(cml) % sample_size
@@ -120,15 +121,19 @@ for cml in [cml]:
         print('FP: ' + str(sum(false_alarm[int(len(true_wet)*0.8):])/sum(ref_wd[int(len(true_wet)*0.8):])))
         
 
-        TP = sum(true_wet)/sum(ref_wd)
-        FP = sum(false_alarm)/sum(ref_wd)
-        cml_res = [train_loss, test_loss, TP, FP]
+        TP_train = sum(true_wet)/sum(ref_wd)
+        FP_train = sum(false_alarm)/sum(ref_wd)
+        TP_test = sum(true_wet[int(len(true_wet)*0.8):])/sum(ref_wd[int(len(true_wet)*0.8):])
+        FP_test = sum(false_alarm[int(len(true_wet)*0.8):])/sum(ref_wd[int(len(true_wet)*0.8):])
+        
+
+        cml_res = [train_loss, test_loss, TP_train, FP_train, TP_test, FP_test]
         results.append(cml_res)
     
-    df = pd.DataFrame(results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
-    df.to_csv('results/results.csv')     # +datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    df = pd.DataFrame(results, columns=['train_loss', 'test_loss', 'TP_train', 'FP_train', 'TP_test', 'FP_test'])
+    df.to_csv('results/results'+str(cnn)+'.csv')     # +datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     mean_results.append(np.mean(results[1:],0))
-df = pd.DataFrame(mean_results, columns=['train_loss', 'test_loss', 'TP', 'FP'])
+df = pd.DataFrame(mean_results, columns=['train_loss', 'test_loss', 'TP_train', 'FP_train', 'TP_test', 'FP_test'])
 df.to_csv('results/mean_repeat.csv')
 
 

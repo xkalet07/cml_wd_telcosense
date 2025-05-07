@@ -36,7 +36,8 @@ import datetime
 
 
 # Import own modules
-import telcosense_classification.module.cnn_telcorain_v22 as cnn
+import telcosense_classification.module.cnn_telcorain_v21 as cnn_my
+import telcosense_classification.module.cnn_telcorain_v22 as cnn_repair
 import telcosense_classification.module.cnn_orig as cnn_orig
 
 """ Variable definitions """
@@ -145,8 +146,17 @@ def cnn_train(ds:pd.DataFrame,
     testloader = torch.utils.data.DataLoader(testset, batchsize, shuffle)
 
     # CNN model
+    if 0:
+        model = cnn_my.cnn_class(channels=num_channels, 
+                    sample_size=sample_size, 
+                    kernel_size=kernel_size, 
+                    dropout = dropout_rate, 
+                    n_fc_neurons = n_fc_neurons,
+                    n_filters = n_conv_filters,
+                    single_output=single_output
+                    )
     if 1:
-        model = cnn.cnn_class(channels=num_channels, 
+        model = cnn_repair.cnn_class(channels=num_channels, 
                         sample_size=sample_size, 
                         kernel_size=kernel_size, 
                         dropout = dropout_rate, 
@@ -154,12 +164,11 @@ def cnn_train(ds:pd.DataFrame,
                         n_filters = n_conv_filters,
                         single_output=single_output
                         )
-    else:
+    if 0:
         model = cnn_orig.cnn_class()
-
     
     # used optimizer and learning rate scheduler
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-4)  # weight decay: chatgpt, +1 % TP, lower testloss and FP
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate , weight_decay=1e-4) # dropout alternative , +1 % TP, lower testloss and FP
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)         # each 10 epoch multiply lr by 0.5
     #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5)    # reduces lr by 0.5 if no improvement
     early_stopping = EarlyStopping(patience=5, min_delta=0.001)

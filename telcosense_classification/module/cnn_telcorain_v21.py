@@ -58,13 +58,6 @@ class ConvBlock(nn.Module):
         
         # https://github.com/qiuqiangkong/audioset_tagging_cnn/blob/master/pytorch/models.py
         self.bn1 = nn.BatchNorm1d(self.channels_out)
-        """, 
-                                  eps=1e-05, 
-                                  momentum=0.1, 
-                                  affine=True, 
-                                  track_running_stats=True, 
-                                  device=None, 
-                                  dtype=None) """
         self.bn2 = nn.BatchNorm1d(self.channels_out)
 
         self.drop1 = nn.Dropout(p=self.dropout)
