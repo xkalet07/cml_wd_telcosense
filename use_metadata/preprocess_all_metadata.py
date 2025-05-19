@@ -36,7 +36,7 @@ from telcosense_classification import preprocess_utility
 
 """ Main """
 source_dir = 'TelcoRain/merged_data/'
-target_dir = 'TelcoRain/merged_data_preprocessed_short_new/'
+target_dir = 'TelcoRain/merged_data_preprocessed_short/'
 
 
 for technology in ['summit', 'summit_bt', '1s10', 'ceragon_ip_20']: # 'ceragon_ip_10' #doesnt have a temperature 
@@ -49,12 +49,6 @@ for technology in ['summit', 'summit_bt', '1s10', 'ceragon_ip_20']: # 'ceragon_i
         cml_B_ip = file_list[i+1][file_list[i+1].rfind('CML_')+4:-4]
         cml = data_loading_utility.load_cml(source_dir, technology, i)
 
-        ## WD REFERENCE
-        cml = preprocess_utility.ref_preprocess(cml, sample_size=60,
-                                                comp_lin_interp=True, upsampled_n_times = 20,
-                                                supress_single_zeros=True
-                                                )
-
         ## PREPROCESS
         cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10, 
                         suppress_step = True, conv_threshold = 250.0, 
@@ -63,6 +57,12 @@ for technology in ['summit', 'summit_bt', '1s10', 'ceragon_ip_20']: # 'ceragon_i
                         reset_detect=True,
                         subtract_median=True
                         )
+
+        ## WD REFERENCE
+        cml = preprocess_utility.ref_preprocess(cml, sample_size=60,
+                                                comp_lin_interp=True, upsampled_n_times = 20,
+                                                supress_single_zeros=True
+                                                )
 
         ## CLASS BALANCE
         cml = preprocess_utility.balance_wd_classes(cml,600)

@@ -40,9 +40,6 @@ Contact: 211312@vutbr.cz
 # DONE: implement pooling, we need shorttime-longtime pattern reckognition
 # TODO: Plots doesnt show cml ip or any id as a title
 # TODO: Data augmentation: noise injecting, time warp, Random scaling, mixUp/cutMix
-# TODO: Improve WD ref preprocessing by including single dry samples between 2 rainy as wet, if R is nonzero
-# TODO: In the CNN modul, investigate the time pooling: x = torch.mean(x,dim=-1). It completely averages one dimension in one step.
-# TODO: 2 outputs instead of single output? classify based on 2 probabilities pW and pD instead of one pW?
 
 """ Imports """
 # Import python libraries
@@ -74,9 +71,9 @@ from telcosense_classification import metrics_utility
 
 """ Constant Variable definitions """
 
-technology = '1s10'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
+technology = 'summit'      # ['summit', 'summit_bt', '1s10', 'ceragon_ip_10', 'ceragon_ip_20']
 dir = 'TelcoRain/merged_data/'
-i = 12 #
+i = 78 #
 # SUMMIT (0,102)    # problematic/weird: 6, 12, 28, 30, 36, 54, 62, 68, 74, 76, 94, 96     # nice:  78, ideal showcase:  100, 16,2 
 # 1dB, 1°C
 # SUMMIT_BT (0,32)  # showcase: 12,24,26,28
@@ -156,7 +153,6 @@ cml = preprocess_utility.ref_preprocess(cml, sample_size,
 
 
 
-
 ## PREPROCESS
 cml = preprocess_utility.cml_preprocess(cml, interp_max_gap = 10, 
                                         suppress_step = True, conv_threshold = 250.0, 
@@ -179,7 +175,34 @@ fig.subplots_adjust(bottom=0.2)
 plt.show()
 '''
 
-plot_utility.plot_input_oneplot(cml)
+
+# plot trsl, rain and ref
+fig, axs = plt.subplots(1,1, figsize=(10, 2.5))
+
+axs.set_xlabel('sample index [-]')
+
+cml.trsl_A.plot(ax=axs, label = 'channel 0')
+cml.trsl_B.plot(ax=axs, label = 'channel 1')
+axs.set_ylabel('trsl [dB]')
+
+ax1 = axs.twinx()
+cml.rain.plot(ax=ax1, color='black', linewidth=0.5, label = 'rain intensity')
+ax1.set_ylabel('rain intensity [mm/30min]')
+#axs.legend(['channel 0', 'channel 1', 'rain amount'],loc='upper right')
+lines, labels = axs.get_legend_handles_labels()
+lines2, labels2 = ax1.get_legend_handles_labels()
+axs.legend(lines + lines2, labels + labels2, loc='upper right')
+
+
+ref_wet_start = np.roll(cml.ref_wd, -1) & ~cml.ref_wd
+ref_wet_end = np.roll(cml.ref_wd, 1) & ~cml.ref_wd
+for start_i, end_i in zip(
+    ref_wet_start.values.nonzero()[0],
+    ref_wet_end.values.nonzero()[0],
+):
+    axs.axvspan(start_i, end_i, color='b', alpha=0.2, linewidth=0) 
+
+plt.show()
 
 
 #plot_utility.plot_cml(cml, columns=['rain', 'ref_wd', 'trsl', 'uptime', 'temp']) #,
@@ -187,14 +210,6 @@ plot_utility.plot_input_oneplot(cml)
 
 ## CLASS BALANCE
 cml = preprocess_utility.balance_wd_classes(cml,600)
-
-
-rain = sum(cml.rain > 0)/len(cml)
-print(rain)
-# 0.4779688879950333
-
-
-
 
 meta_repeated = pd.concat([metadata] * len(cml), ignore_index=True)
 # Combine with the trsl data
@@ -279,7 +294,7 @@ print('ROC surface A:', roc_surface)
 metrics_utility.plot_roc_curve(roc_curve,cnn_wd_threshold)
 
 # confusion matrix 
-cm = skl.confusion_matrix(ref_wd, cnn_wd, labels=[1,0], normalize='true').round(decimals=3)
+cm = skl.confusion_matrix(ref_wd, cnn_wd, labels=[0,1], normalize='true').round(decimals=3)
 print('normalized confusion matrix:\n',cm)
 print('TNR:', cm[0,0])
 print('TPR:', cm[1,1])

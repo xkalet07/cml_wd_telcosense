@@ -35,6 +35,7 @@ from scipy.signal import find_peaks
 # TODO: spikes remaining around step after supressing the step in preprocessing (especially 1s10)
 # TODO: Different preprocess tresholds for different cml technologies
 # TODO: Data augmentation: noise injecting, time warp, Random scaling, mixUp/cutMix
+# TODO: patch the Ref WD calculation: its downsampled wut the samples are deleted in CML preprocessing, WD samples are not aligned
 
 
 """ Variable definitions """
@@ -112,7 +113,12 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
         cml_mean = cml[trsl].mean()
         cml_max = cml[trsl].max()
         cml[trsl] = (cml[trsl].values-cml_mean) / cml_max
-
+    for temp in ['temp_A', 'temp_B']:
+        # MIN-MAX standardization
+        temp_min = cml[temp].min()
+        temp_max = cml[temp].max()
+        cml[temp] = (cml[temp].values-temp_min) / (temp_max-temp_min)
+        
     return cml
 
 
@@ -179,7 +185,7 @@ def cml_suppress_extremes_z(cml:pd.DataFrame, z_threshold = 10.0):
 
 
 
-def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 20.0):
+def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 250.0):
     """
     Detect steps in trsl mean value and alighn periods with extremely different mean value
 
@@ -191,38 +197,35 @@ def cml_suppress_step(cml:pd.DataFrame, conv_threshold = 20.0):
     Returns
     cml : Pandas.DataFrame
     """
+    # create the step function
     step = np.hstack((np.ones(500), -1*np.ones(500)))
 
-    for trsl in ['trsl_A', 'trsl_B']:
+    for trsl in [cml['trsl_A'], cml['trsl_B']]:
         # standardisation
-        cml_min = cml[trsl].min()
-        cml_max = cml[trsl].max()
-        cml[trsl] = (cml[trsl].values-cml_min) / (cml_max-cml_min)
+        cml_min = trsl.min()
+        cml_max = trsl.max()
+        trsl = (trsl.values-cml_min) / (cml_max-cml_min)
 
-        conv = np.abs(np.convolve(cml[trsl], step, mode='valid'))
+        # calculate the convolution
+        conv = np.abs(np.convolve(trsl, step, mode='valid'))
         conv = np.append(np.append(np.zeros(500),conv),np.zeros(499))
-        
-        #cml[trsl+'_conv'] = conv
-
         convDF = pd.DataFrame(conv, columns=['conv'])
 
-        step_mask = (conv > conv_threshold)
-                        
         # Find indices where convolution reaches maximum
+        step_mask = (conv > conv_threshold)    # isolates the highest peaks
         step_loc,_ = find_peaks(convDF.conv.where(step_mask), prominence=1)
         
         # delete +-5 values around step
         around_step = np.array([step_loc+(a-5) for a in range(10)]).ravel()
-        cml[trsl][around_step] = np.nan
+        trsl[around_step] = np.nan
         
-        step_loc = np.append(0,step_loc)
-        
-        # If trsl step is present, align values
+        # Only if trsl step is present, align values
+        step_loc = np.append(0,step_loc)       # add 0 as step index
         for i in range(len(step_loc)):
             if i < len(step_loc)-1:
-                cml[trsl][step_loc[i]:step_loc[i+1]] = cml[trsl][step_loc[i]:step_loc[i+1]] - cml[trsl][step_loc[i]:step_loc[i+1]].mean()
+                trsl[step_loc[i]:step_loc[i+1]] = trsl[step_loc[i]:step_loc[i+1]] - trsl[step_loc[i]:step_loc[i+1]].mean()
             elif i >= len(step_loc)-1:
-                cml[trsl][step_loc[i]:] = cml[trsl][step_loc[i]:] - cml[trsl][step_loc[i]:].mean()
+                trsl[step_loc[i]:] = trsl[step_loc[i]:] - trsl[step_loc[i]:].mean()
         
     return cml
 
@@ -282,7 +285,8 @@ def subtract_trsl_median(cml:pd.DataFrame):
 
 
 
-def ref_preprocess(cml:pd.DataFrame, 
+def ref_preprocess(cml:pd.DataFrame,
+                   sample_size = 60, 
                    comp_lin_interp = False, upsampled_n_times = int(0),
                    supress_single_zeros = False):
     """
@@ -294,6 +298,7 @@ def ref_preprocess(cml:pd.DataFrame,
 
     Parameters
     cml : Pandas.DataFrame containing cml data and corresponding reference raifall data
+    sample_size : int, default = 30, downsampling coefficient for WD reference
     supress_single_zeros : bool, default = False, Supress single zeros if True
     comp_lin_interp : bool, default = False, Compensate for nonzero leakage if True
     upsampled_n_times : int, default value = 0, number of times upsampled. Defining 
@@ -317,7 +322,7 @@ def ref_preprocess(cml:pd.DataFrame,
         single_zeros = np.where((shifted_mask_L | shifted_mask_LL) & (shifted_mask_R | shifted_mask_RR) & ~nonzero_mask1)[0]
         
         #single_zeros = np.where(np.roll(rain_start,-1) & np.roll(rain_end,1))[0]
-        cml.rain[single_zeros] = 0.1
+        cml.rain[single_zeros] = 0.01
 
 
     # Compensating linear interpolation:
@@ -333,8 +338,14 @@ def ref_preprocess(cml:pd.DataFrame,
         for idx in last_indices:
             cml.rain[max(0, idx - (upsampled_n_times-2)): idx + 1] = 0  # Ensure we don't go out of bounds
 
+    # get downsampled R values, but keep them repeated with 30s
+    cml['time'] = pd.to_datetime(cml['time'])
+    rain_rate = cml.resample(str(sample_size/2)+'min',on='time').sum()/20 # *3 to convert [mm/10min] to [mm/30min]  
+    rain_rate = np.repeat(rain_rate.rain.values,sample_size)
+    cml['rain'] = rain_rate[:(len(cml)-len(rain_rate))]
+
     # create reference WD flag
-    cml['ref_wd'] = cml.rain.where(cml.rain == 0, True).astype(bool)
+    cml['ref_wd'] = cml.rain > 0.15
     cml['ref_wd'][0] = False
 
     return cml
@@ -353,28 +364,28 @@ def balance_wd_classes(cml:pd.DataFrame, max_zero_length = 600):
     Returns
     cml_balanced: Pandas.DataFrame, containing cml data and reference WD
     """
-    buffer_size = max_zero_length//2       # Keep number of zeros around long zero segments
+    # Keep number of zeros around long zero segments
+    keep_n_zeros = max_zero_length//2      
 
     # Mark contiguous segments of 0s and 1s
     cml['segment'] = (cml['ref_wd'].diff().ne(0)).cumsum()
-
+    # get segment lengths
     segment_lengths = cml.groupby('segment')['ref_wd'].transform('count')
     
     # Find long zero segments
     long_zero_segments = cml[(cml['ref_wd'] == 0) & (segment_lengths > max_zero_length)]['segment'].unique()
 
     # Create a mask to mark values to keep
-    keep_mask = np.ones(len(cml), dtype=bool)           # mask of ones, excluded segments wil be marked 0
+    keep_mask = np.ones(len(cml), dtype=bool)  # mask of ones, excluded segments wil be marked 0
 
     for seg in long_zero_segments:
         seg_indices = cml[cml['segment'] == seg].index  # Get all row indices of this segment
         
         # Keep first and last `buffer_size` zeros
-        keep_indices = set(seg_indices[:buffer_size]) | set(seg_indices[-buffer_size:])
+        keep_indices = set(seg_indices[:keep_n_zeros]) | set(seg_indices[-keep_n_zeros:])
         
         # Update mask
         middle_indices = set(seg_indices) - keep_indices
-        #keep_mask.iloc[list(keep_indices)] = True  # Keep surrounding 500 zeros
         keep_mask[list(middle_indices)] = False  # Exclude only the middle part
 
     # Apply the filter

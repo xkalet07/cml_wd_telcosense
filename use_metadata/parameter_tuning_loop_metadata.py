@@ -66,7 +66,7 @@ save_param = False
 
 """ Main """
 #dir = 'TelcoRain/evaluating_dataset_short/'
-dir = 'TelcoRain/merged_data_preprocessed_short_old/all_together/'
+dir = 'TelcoRain/merged_data_preprocessed_short/all_together/'
 file_list = os.listdir(dir)
 
 
@@ -95,13 +95,13 @@ for file in file_list:
     meta_repeated = metadata.loc[metadata.index.repeat(len(cmli))].reset_index(drop=True)   #pd.concat([metadata] * len(cmli), ignore_index=True)
     cmli = pd.concat([cmli, meta_repeated], axis=1)
     
-    cutoffi = len(cmli) % sample_size       # keep even sampling
-    ds.append(cmli[:-cutoffi])
+    ds.append(cmli)
 
 cml = pd.concat(ds, ignore_index=True) 
 
 cml = preprocess_utility.shuffle_dataset(cml, segment_size = batchsize*sample_size)
-cml.to_csv('TelcoRain/merged_data_preprocessed_short_old/whole_dataset_metadata_shuffled.csv', index=False) 
+cml.to_csv('TelcoRain/merged_data_preprocessed_short/whole_dataset_metadata_shuffled.csv', index=False) 
+
 
 
 # load x cml at once

@@ -75,6 +75,11 @@ TelcoRain
 data
 example_data
 results
+statistic_analysis
+thesis_files
+# delete this folder in future
+use_metedata            
+
 
 # Backup folder #
 #################

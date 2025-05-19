@@ -8,7 +8,7 @@ Version: 1.0
 Description: 
     This script contains function set to quantize performance of CNN model
     for WD classification using CML data
-
+    source: https://github.com/jpolz/cnn_cml_wet-dry_example
 License: 
 Contact: 211312@vutbr.cz
 """
@@ -100,15 +100,15 @@ def plot_roc_curve(roc:np.array, threshold = 0.5):
     plt.figure(figsize=(5,5))
     
     # plot ROC curve
-    plt.plot(roc[:,1],roc[:,0], color='green', label='CNN Area: '+str(np.round(calculate_roc_surface(roc), decimals=2)), zorder=2, lw=3)
+    plt.plot(roc[:,1],roc[:,0], color='red', label='bad perf. Area: '+str(np.round(calculate_roc_surface(roc), decimals=3)), zorder=2, lw=2)
 
     # plot point of cnn threshold
     plt.scatter(roc[int(threshold*1000),1],roc[int(threshold*1000),0], color='black', marker='h', s=75, label='$\\tau$ ='+str(threshold), zorder=3)
     
     plt.plot([0,0,1,0,1,1],[0,1,1,0,0,1], 'k-', linewidth=0.3, zorder=1)
-    plt.title('ROC curve, TPR = f(TNR)')
-    plt.xlabel('False positive rate')
-    plt.ylabel('True positive rate')
+    plt.title('TPR = f(TNR)')
+    plt.xlabel('False positive rate [-]')
+    plt.ylabel('True positive rate [-]')
     plt.legend(loc='lower right', ncol=2, frameon=False)
     plt.grid()
     plt.yticks(np.arange(0, 1.01, 0.1))
@@ -126,7 +126,7 @@ def plot_confusion_matrix(cm:np.array):
     Parameters
     cm : np.array, Clalculated confusion matrix, shape: [[TP,FN],[FP,TN]]
     """
-    labels = ['dry', 'wet']
+    labels = ['wet', 'dry']
 
     fig, ax1 = plt.subplots(figsize=(3,3), sharex=True)
     #ax1 = fig.add_subplot(131)

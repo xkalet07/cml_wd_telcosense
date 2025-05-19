@@ -50,12 +50,11 @@ import telcosense_classification.module.cnn_orig as cnn_orig
 #           or output size = sample size. input parameter
 # TODO: patch sample size output testloss is NaN
 # TODO: change the WD ref douwnsampling method
- 
 
 def cnn_train(ds:pd.DataFrame, 
             num_channels = 2,
-            sample_size = 60, 
-            batchsize = 256, 
+            sample_size = 100, 
+            batchsize = 20, 
             epochs = 20, 
             resume_epoch = 0, 
             learning_rate = 0.01, 
@@ -95,7 +94,43 @@ def cnn_train(ds:pd.DataFrame,
     test_loss: testloss during last epoch
     """
     
-    trsl, ref = get_trsl_and_ref(ds, sample_size, num_channels, single_output)
+    n_samples = len(ds) // sample_size
+    cutoff = len(ds) % sample_size
+
+    if cutoff == 0:
+        if num_channels == 2:
+            trsl = np.concatenate((ds.trsl_A.values[:], ds.trsl_B.values[:])).reshape((-1, num_channels), order='F')
+            trsl = trsl.reshape(n_samples, sample_size, num_channels).transpose(0,2,1)
+        elif num_channels == 4:
+            trsl = np.concatenate((ds.trsl_A.values[:], 
+                                ds.trsl_B.values[:],
+                                ds.temp_A.values[:],
+                                ds.temp_B.values[:])
+                                ).reshape((-1, num_channels), order='F')
+            trsl = trsl.reshape(n_samples, sample_size, num_channels).transpose(0,2,1)
+        if single_output:
+            ref = ds.ref_wd.values[::sample_size]   
+        else:
+            ref = ds.ref_wd.values[:].reshape((n_samples,sample_size))
+        metadata = ds.iloc[:,-13:-2].values[::sample_size]   
+
+    else:
+        if num_channels == 2:
+            trsl = np.concatenate((ds.trsl_A.values[:-cutoff], ds.trsl_B.values[:-cutoff])).reshape((-1, num_channels), order='F')
+            trsl = trsl.reshape(n_samples, sample_size, num_channels).transpose(0,2,1)
+        elif num_channels == 4:
+            trsl = np.concatenate((ds.trsl_A.values[:-cutoff], 
+                                ds.trsl_B.values[:-cutoff],
+                                ds.temp_A.values[:-cutoff],
+                                ds.temp_B.values[:-cutoff])
+                                ).reshape((-1, num_channels), order='F')
+            trsl = trsl.reshape(n_samples, sample_size, num_channels).transpose(0,2,1)
+        if single_output:
+            ref = ds.ref_wd.values[:-cutoff][::sample_size]   
+        else:
+            ref = ds.ref_wd.values[:-cutoff].reshape((n_samples,sample_size))
+        metadata = ds.iloc[:-cutoff,-13:-2].values[::sample_size]
+
 
     k_train = 0.8     # fraction of training data
     train_size = int(len(trsl)*k_train/batchsize)*batchsize
@@ -104,23 +139,23 @@ def cnn_train(ds:pd.DataFrame,
     train_data = torch.Tensor(trsl[:train_size])
     test_data = torch.Tensor(trsl[train_size:])
 
-    #train_meta = torch.Tensor(metadata.tolist()[:train_size])
-    #test_meta = torch.Tensor(metadata.tolist()[train_size:])
+    train_meta = torch.Tensor(metadata.tolist()[:train_size])
+    test_meta = torch.Tensor(metadata.tolist()[train_size:])
 
     train_ref = torch.Tensor(ref[:train_size])
     test_ref = torch.Tensor(ref[train_size:])
     
 
     # Turning into TensorDataset
-    dataset = torch.utils.data.TensorDataset(train_data, train_ref) #, train_meta
-    testset = torch.utils.data.TensorDataset(test_data, test_ref) #, test_meta
+    dataset = torch.utils.data.TensorDataset(train_data, train_meta, train_ref)
+    testset = torch.utils.data.TensorDataset(test_data, test_meta, test_ref)
 
     trainloader = torch.utils.data.DataLoader(dataset, batchsize, shuffle)
     testloader = torch.utils.data.DataLoader(testset, batchsize, shuffle)
 
 
     # CNN model
-    if 0:
+    if 1:
         model = cnn_metadata.cnn_class(channels=num_channels, 
                     const_parameters = 11,
                     sample_size=sample_size, 
@@ -134,20 +169,12 @@ def cnn_train(ds:pd.DataFrame,
         model = cnn_repair.cnn_class(channels=num_channels, 
                         sample_size=sample_size, 
                         kernel_size=kernel_size, 
-                        n_fc_neurons = n_fc_neurons,
-                        n_filters = n_conv_filters,
-                        single_output=single_output
-                        )
-    elif 0:
-        model = cnn_batchnorm.cnn_class(channels=num_channels, 
-                        sample_size=sample_size, 
-                        kernel_size=kernel_size, 
                         dropout = dropout_rate, 
                         n_fc_neurons = n_fc_neurons,
                         n_filters = n_conv_filters,
                         single_output=single_output
                         )
-    elif 1:
+    elif 0:
         model = cnn_orig.cnn_class()
     
     # used optimizer and learning rate scheduler
@@ -170,9 +197,9 @@ def cnn_train(ds:pd.DataFrame,
         # training
         model.train()
         train_losses = []
-        for inputs, targets in tqdm(trainloader): #meta, 
+        for inputs, meta, targets in tqdm(trainloader):
             optimizer.zero_grad()
-            pred = model(inputs)#,meta)
+            pred = model(inputs,meta)
             # flatten prediction only for single value output
             if single_output: pred = nn.Flatten(0,1)(pred)
             # getting the output
@@ -190,8 +217,8 @@ def cnn_train(ds:pd.DataFrame,
         model.eval()
         test_losses = []
         with torch.no_grad():
-            for inputs, targets in tqdm(testloader): #meta, 
-                pred = model(inputs)#,meta)
+            for inputs, meta, targets in tqdm(testloader):
+                pred = model(inputs,meta)
                 # flatten prediction only for single value output
                 if single_output: pred = nn.Flatten(0,1)(pred)
                 # getting the output
@@ -243,59 +270,6 @@ def cnn_train(ds:pd.DataFrame,
     return cnn_out, np.mean(train_losses), np.mean(test_losses)
 
 
-def get_trsl_and_ref(ds:pd.DataFrame, sample_size = 60, num_channels = 2, single_output = True):
-    """
-    Extract and reshape trsl and ref WD and store them as arrays. 
-    Cut off samples non fitting into sample size, also reshape ref WD based on single/continuous output
-
-    Parameters
-    ds : pandas.DataFrame containing CML data and reference rain data for training and testing
-    num_channels : int, default = 2, number of variables for cnn to classify from (2*trsl, 2*temperature)
-    sample_size : int, default = 100, number of values to be grouped in a sample
-    single_output : bool, classification output of the CNN is single value if True, otherwise matches sample_size
-        
-    Returns
-    trsl: np.array containing float trsl values in shape [n_samples, n_channels, samplesize]
-    ref: np.array containing boolean WD reference in shape [n_samples] or [n_samples, samplesize]
-    """
-    n_samples = len(ds) // sample_size
-    cutoff = len(ds) % sample_size
-
-    if cutoff == 0:
-        if num_channels == 2:
-            trsl = np.concatenate((ds.trsl_A.values[:], ds.trsl_B.values[:])).reshape((-1, num_channels), order='F')
-            trsl = trsl.reshape(n_samples, sample_size, num_channels).transpose(0,2,1)
-        elif num_channels == 4:
-            trsl = np.concatenate((ds.trsl_A.values[:], 
-                                ds.trsl_B.values[:],
-                                ds.temp_A.values[:],
-                                ds.temp_B.values[:])
-                                ).reshape((-1, num_channels), order='F')
-            trsl = trsl.reshape(n_samples, sample_size, num_channels).transpose(0,2,1)
-        if single_output:
-            ref = ds.ref_wd.values[::sample_size]   
-        else:
-            ref = ds.ref_wd.values.reshape((n_samples,sample_size))
-        #metadata = ds.iloc[:,-11:].values[::sample_size]   
-
-    else:
-        if num_channels == 2:
-            trsl = np.concatenate((ds.trsl_A.values[:-cutoff], ds.trsl_B.values[:-cutoff])).reshape((-1, num_channels), order='F')
-            trsl = trsl.reshape(n_samples, sample_size, num_channels).transpose(0,2,1)
-        elif num_channels == 4:
-            trsl = np.concatenate((ds.trsl_A.values[:-cutoff], 
-                                ds.trsl_B.values[:-cutoff],
-                                ds.temp_A.values[:-cutoff],
-                                ds.temp_B.values[:-cutoff])
-                                ).reshape((-1, num_channels), order='F')
-            trsl = trsl.reshape(n_samples, sample_size, num_channels).transpose(0,2,1)
-        if single_output:
-            ref = ds.ref_wd.values[:-cutoff][::sample_size]   
-        else:
-            ref = ds.ref_wd.values[:-cutoff].reshape((n_samples,sample_size))
-        #metadata = ds.iloc[:-cutoff,-11:].values[::sample_size]
-
-    return trsl, ref
 
 class EarlyStopping:
     # Early stopping on test-loss (validation-loss) implementation
@@ -324,73 +298,3 @@ class EarlyStopping:
 
 
 
-
-def cnn_classify(ds:pd.DataFrame, 
-                    param_dir = str,
-                    num_channels = 2,
-                    sample_size = 60, 
-                    batchsize = 256, 
-                    kernel_size = 3,
-                    n_conv_filters = 128,
-                    n_fc_neurons = 64,
-                    single_output = True
-                    ):
-    """
-    Classify rainy periods from CML data, using trained cnn modul
-    
-    Parameters
-    ds : pandas.DataFrame containing CML data and reference rain data for training and testing
-    param_dir: str, default = 'default', 
-    num_channels : int, default = 2, number of variables for cnn to classify from (2*trsl, 2*temperature)
-    samplesize : int, default = 100, number of values to be grouped in a sample
-    batchsize : int, default = 20, number of samples per batch, to be feed into cnn at once
-    kernel_size : int, default = 3
-    n_conv_filters : int, number of convolutional layer inputs and outputs
-    n_fc_neurons : int, number of neurons in FC layer
-    single_output : bool, classification output of the CNN is single value if True, otherwise matches sample_size
-            
-    Returns
-    cnn_out: np.array containing 0-1 float classification probability output of CNN
-    total_loss: float, total cnn prediction loss (w/d reference - cnn output)
-    """
-
-    trsl, ref = get_trsl_and_ref(ds, sample_size, num_channels, single_output)
-
-    # Storing as tensors [2]
-    trsl_data = torch.Tensor(trsl)
-    ref_data = torch.Tensor(ref)
-
-    # Turning into TensorDataset
-    dataset = torch.utils.data.TensorDataset(trsl_data, ref_data)
-
-    validloader = torch.utils.data.DataLoader(dataset, batch_size = batchsize, shuffle = False)
-
-
-    # loading the model parameters:
-    path = 'telcosense_classification/module/trained_cnn_param/'
-    model = cnn_repair.cnn_class(channels=num_channels, 
-                    sample_size=sample_size, 
-                    kernel_size=kernel_size, 
-                    n_fc_neurons = n_fc_neurons,
-                    n_filters = n_conv_filters,
-                    single_output=single_output
-                    )
-    
-
-    model.load_state_dict(torch.load(path+param_dir))
-
-    cnn_output = []
-    valid_losses = []
-    model.eval()
-    with torch.no_grad():
-        for inputs, targets in tqdm(validloader):
-            pred = model(inputs)
-            pred = nn.Flatten(0,1)(pred)
-            cnn_output = cnn_output + pred.tolist()
-            loss = nn.BCELoss()(pred, targets)
-            valid_losses.append(loss.detach().numpy())
-        total_loss = np.mean(valid_losses)
-
-    cnn_out = np.array(cnn_output).reshape(-1)
-
-    return cnn_out, np.mean(total_loss)
