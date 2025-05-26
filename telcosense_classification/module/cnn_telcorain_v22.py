@@ -3,12 +3,13 @@
 """
 Filename: cnn_telcorain.py
 Author: Lukas Kaleta
-Date: 2025-04-03
+Date: 2025-05-56
 Version: 2.2
 Description: 
     CNN architecture for the purpose of Telcorain CML precipitation detection.
     Model designed for signle output WD value classification for sample period.
-    Inspired by: https://github.com/jpolz/cml_wd_pytorch/tree/main
+    Inspired by: [1] https://github.com/jpolz/cml_wd_pytorch/tree/main
+                 [2] https://github.com/qiuqiangkong/audioset_tagging_cnn/blob/master/pytorch/models.py
 
 License: 
 Contact: 211312@vutbr.cz
@@ -23,9 +24,8 @@ import torch.nn.functional as F
 
 """ Function definitions """
 
-# https://github.com/qiuqiangkong/audioset_tagging_cnn/blob/master/pytorch/models.py
 def init_layer(layer):
-    # Initialize a Convolutional layer
+    # Initialize a Convolutional layer [2]
     nn.init.xavier_uniform_(layer.weight)
     
 def init_bn(bn):
@@ -53,10 +53,7 @@ class ConvBlock(nn.Module):
         
         self.conv1 = nn.Conv1d(self.channels_in, self.channels_out, self.kernelsize, padding='same') 	# padding same padds the input data to match the output dimension 
         self.conv2 = nn.Conv1d(self.channels_out, self.channels_out, self.kernelsize, padding='same')
-        #self.bn1 = nn.BatchNorm1d(self.channels_out) # !!!!!!!!!!!!!!!!!!
-        #self.bn2 = nn.BatchNorm1d(self.channels_out) # !!!!!!!!!!!!!!!!!!
-        #self.drop1 = nn.Dropout(p=0.0002)
-        #self.drop2 = nn.Dropout(p=0.0002)
+
         self.act1 = nn.ReLU()
         self.act2 = nn.ReLU()        
         self.init_weight()
@@ -64,8 +61,6 @@ class ConvBlock(nn.Module):
     def init_weight(self):
         init_layer(self.conv1)
         init_layer(self.conv2)
-        #init_bn(self.bn1) #!!!!!!!!!!!!!!!!
-        #init_bn(self.bn2) # !!!!!!!!!!!!!!!!!!
 
     def forward(self, input):
         x = input
@@ -90,7 +85,7 @@ class cnn_class(nn.Module):
         self.cb2 = ConvBlock(self.kernelsize, self.n_filters[0], self.n_filters[1])
         self.cb3 = ConvBlock(self.kernelsize, self.n_filters[1], self.n_filters[2])
         self.cb4 = ConvBlock(self.kernelsize, self.n_filters[2], self.n_filters[3])
-        self.bnc1 = nn.BatchNorm1d(self.n_filters[0], eps=0, momentum=0.1, affine=True, track_running_stats=True)#,track_running_stats=False) # !!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.bnc1 = nn.BatchNorm1d(self.n_filters[0], eps=0, momentum=0.1, affine=True, track_running_stats=True)
         init_bn(self.bnc1)
 
 
@@ -98,20 +93,15 @@ class cnn_class(nn.Module):
         self.act = nn.ReLU()
         self.dense1 = nn.Linear(self.n_filters[3], self.n_fc_neurons)
         self.dense2 = nn.Linear(self.n_fc_neurons, self.n_fc_neurons)
-        #self.drop1 = nn.Dropout(0.0002) # !!!!!!!!!!!!!!!!!!!!!!!
-        #self.drop2 = nn.Dropout(0.0002) # !!!!!!!!!!!!!!!!!!!!!
-        #self.bnf1 = nn.BatchNorm1d(self.n_fc_neurons, eps=0, momentum=0.1, affine=True, track_running_stats=True)
-        #self.bnf2 = nn.BatchNorm1d(self.n_fc_neurons, eps=0, momentum=0.1, affine=True, track_running_stats=True)
-        self.denseOut = nn.Linear(self.n_fc_neurons, self.output)                     # single value on the output
-        self.final_act = nn.Sigmoid()                                  # Sigmoid function to add nonlinearity for output classification as 1/0
+        self.denseOut = nn.Linear(self.n_fc_neurons, self.output)        
+        self.final_act = nn.Sigmoid()      
         self.init_fc()
 
     def init_fc(self):
         init_layer(self.dense1)
         init_layer(self.dense2)
         init_layer(self.denseOut)
-        #init_bn(self.bnf1)
-        #init_bn(self.bnf2)
+        
     
     def forward(self, x):
         ### Conv part 

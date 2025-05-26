@@ -3,8 +3,8 @@
 """
 Filename: data_loading_utility.py
 Author: Lukas Kaleta
-Date: 2025-03-19
-Version: 1.0
+Date: 2025-05-26
+Version: 2.0t
 Description: 
     This script contains function set for loading cml data for rain event detection. 
     designed for CML data from czech republic and reference CHMI.
@@ -15,16 +15,16 @@ Contact: 211312@vutbr.cz
 
 """ Notes """
 # TODO: load cml B using its IP, not i+1
+# TODO: load metadata
 
 """ Imports """
 # Import python libraries
-import numpy as np
 import pandas as pd
 import os
 
 # Import external packages
 
-# Import own modules
+# Import local modules
 
 """ Variable definitions """
 
@@ -59,28 +59,6 @@ def find_missing_column(parameter_name:str, path:str):
 
     return output_list
 
-# TODO:
-'''
-def load_metadata(dir:str, technology:str):
-    """
-    Search merged cml-rainGauge files in given directory for specific column name.
-    Returns list of filenames, which are missing given parameter column.
-    Typical names: 'time', 'SRA10M', 'cml_PrijimanaUroven', 'cml_Uptime', 'cml_Teplota'
-
-    Parameters:
-    dir : str, default = 'TelcoRain/merged_data/', directory containing cml folders
-    technology : str, default = 'summit', folder containing cmls of one technology
-
-    Returns:
-    output_list : list, list of files missing given parameter (column) name
-    """
-    path = dir + technology+'/'
-    file_list = sorted(os.listdir(path))
-    cml_A_ip = file_list[i][file_list[i].rfind('CML_')+4:-4]
-
-    metadata = metadata_all.loc[metadata_all['IP_address_A'] == cml_A_ip]
-
-'''
 
 
 def load_cml(dir:str, technology:str, i = int):

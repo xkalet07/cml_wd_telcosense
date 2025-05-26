@@ -4,7 +4,7 @@
 Filename: metrics_utility.py
 Author: Lukas Kaleta
 Date: 2025-05-06
-Version: 1.0
+Version: 2.0t
 Description: 
     This script contains function set to quantize performance of CNN model
     for WD classification using CML data
@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 
 
 # Import external packages
-# Import own modules
+# Import local modules
 
 """ Variable definitions """
 
@@ -100,10 +100,12 @@ def plot_roc_curve(roc:np.array, threshold = 0.5):
     plt.figure(figsize=(5,5))
     
     # plot ROC curve
-    plt.plot(roc[:,1],roc[:,0], color='red', label='bad perf. Area: '+str(np.round(calculate_roc_surface(roc), decimals=3)), zorder=2, lw=2)
+    plt.plot(roc[:,1],roc[:,0], label='RSD, AUC: '+str(np.round(calculate_roc_surface(roc), decimals=3)), zorder=2, lw=2)
+    plt.plot(roc[:,1],roc[:,0], label='RSD, AUC: '+str(np.round(calculate_roc_surface(roc), decimals=3)), zorder=2, lw=2)
+    plt.plot(roc[:,1],roc[:,0], label='RSD, AUC: '+str(np.round(calculate_roc_surface(roc), decimals=3)), zorder=2, lw=2)
 
     # plot point of cnn threshold
-    plt.scatter(roc[int(threshold*1000),1],roc[int(threshold*1000),0], color='black', marker='h', s=75, label='$\\tau$ ='+str(threshold), zorder=3)
+    plt.scatter(roc[int(threshold*1000),1],roc[int(threshold*1000),0], color='black', marker='h', s=75, label='$\\tau_{RSD}$ ='+str(threshold), zorder=3)
     
     plt.plot([0,0,1,0,1,1],[0,1,1,0,0,1], 'k-', linewidth=0.3, zorder=1)
     plt.title('TPR = f(TNR)')
@@ -147,4 +149,5 @@ def plot_confusion_matrix(cm:np.array):
     ax1.xaxis.set_label_position('top') 
     plt.tight_layout()
     plt.title('CNN', pad=50)
+    plt.show()
 

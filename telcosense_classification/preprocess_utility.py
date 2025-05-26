@@ -3,10 +3,11 @@
 """
 Filename: preprocess_utility.py
 Author: Lukas Kaleta
-Date: 2025-01-31
-Version: 1.0
+Date: 2025-05-26
+Version: 2.0
 Description: 
     This script contains functions for cml dataset preprocessing
+    Specifically for Czech CML dataset
 
 License: 
 Contact: 211312@vutbr.cz
@@ -16,26 +17,23 @@ Contact: 211312@vutbr.cz
 """ Imports """
 # Import python libraries
 
-import math
 import numpy as np
 import pandas as pd
-import os
 
 from scipy.signal import find_peaks
 # Import external packages
 
 
-# Import own modules
+# Import local modules
 
 """ Notes """
 # TODO: copy data into NaN gaps from adjacent cml #cml['rsl_A'] = cml.rsl_A + cml.rsl_B.where(np.isnan(cml.rsl_A))
-# TODO: copy adjacent data, if large chunk of rsl is missing: 1s10: 12
+# TODO: copy adjacent data, if large chunk of rsl is missing: alpha: 12
 # TODO: better interpolation: https://stackoverflow.com/questions/30533021/interpolate-or-extrapolate-only-small-gaps-in-pandas-dataframe
 # TODO: some CML still has NaN gaps, find it and exclude the NaN samples.
-# TODO: spikes remaining around step after supressing the step in preprocessing (especially 1s10)
 # TODO: Different preprocess tresholds for different cml technologies
 # TODO: Data augmentation: noise injecting, time warp, Random scaling, mixUp/cutMix
-# TODO: patch the Ref WD calculation: its downsampled wut the samples are deleted in CML preprocessing, WD samples are not aligned
+# TODO: patch the Ref WD calculation: its downsampled, but the samples are deleted in CML preprocessing, WD samples are not aligned
 
 
 """ Variable definitions """
@@ -106,15 +104,12 @@ def cml_preprocess(cml:pd.DataFrame, interp_max_gap = 10,
 
     # standardisation
     for trsl in ['trsl_A', 'trsl_B']:
-        #cml_min = cml[trsl].min()
-        #cml_max = cml[trsl].max()
-        #cml[trsl] = (cml[trsl].values-cml_min) / (cml_max-cml_min)
-        # MEAN-MAX standardization
+        # trsl: MEAN-MAX standardization
         cml_mean = cml[trsl].mean()
         cml_max = cml[trsl].max()
         cml[trsl] = (cml[trsl].values-cml_mean) / cml_max
     for temp in ['temp_A', 'temp_B']:
-        # MIN-MAX standardization
+        # temperature: MIN-MAX standardization
         temp_min = cml[temp].min()
         temp_max = cml[temp].max()
         cml[temp] = (cml[temp].values-temp_min) / (temp_max-temp_min)
@@ -141,8 +136,7 @@ def cml_suppress_extremes_std(cml:pd.DataFrame, window_size = 10, std_threshold 
     # calculate rolling STD
     for trsl in ['trsl_A', 'trsl_B']:
         rolling_std = cml[trsl].rolling(window=window_size, center=True).std()
-        # cml[trsl+'_std'] = rolling_std
-
+  
         # Fill NaN values at the edges
         rolling_std.fillna(method='bfill', inplace=True)
         rolling_std.fillna(method='ffill', inplace=True)
@@ -174,7 +168,6 @@ def cml_suppress_extremes_z(cml:pd.DataFrame, z_threshold = 10.0):
     for trsl in ['trsl_A', 'trsl_B']:
         # Drop faulty single extreme values by Z method (non detected by std)
         z_param = (cml[trsl]-cml[trsl].mean())/cml[trsl].std()
-        #cml[trsl+'_z'] = z_param        
         cml[trsl] = cml[trsl].where(abs(z_param) < z_threshold)
         cml[trsl] = cml[trsl].where(z_param > -5.0)
     # interpolation both trsl, and R
@@ -244,11 +237,9 @@ def cml_reset_detect(cml:pd.DataFrame):
 
     # Get the indices where the uptime stepdown happens
     stepdown_mask = (cml['uptime_A'].diff() <= 0) | (cml['uptime_B'].diff() <= 0)
-    #stepdown_mask = (cml['uptime_A'].diff() < 0) | (cml['uptime_B'].diff() < 0)
     stepdown_indices = cml.index[stepdown_mask]
 
-    # (delete +-5 values around step)
-    #around_stepdown = np.array([stepdown_indices+(a-5) for a in range(10)]).ravel()
+    # (values around step)
     cml['trsl_A'][stepdown_indices] = np.nan
     cml['trsl_B'][stepdown_indices] = np.nan
 
@@ -321,7 +312,6 @@ def ref_preprocess(cml:pd.DataFrame,
 
         single_zeros = np.where((shifted_mask_L | shifted_mask_LL) & (shifted_mask_R | shifted_mask_RR) & ~nonzero_mask1)[0]
         
-        #single_zeros = np.where(np.roll(rain_start,-1) & np.roll(rain_end,1))[0]
         cml.rain[single_zeros] = 0.01
 
 
@@ -340,7 +330,7 @@ def ref_preprocess(cml:pd.DataFrame,
 
     # get downsampled R values, but keep them repeated with 30s
     cml['time'] = pd.to_datetime(cml['time'])
-    rain_rate = cml.resample(str(sample_size/2)+'min',on='time').sum()/20 # *3 to convert [mm/10min] to [mm/30min]  
+    rain_rate = cml.resample(str(sample_size/2)+'min',on='time').sum()/20 # /20 to convert [mm/10min] to [mm/30min]  
     rain_rate = np.repeat(rain_rate.rain.values,sample_size)
     cml['rain'] = rain_rate[:(len(cml)-len(rain_rate))]
 
@@ -449,6 +439,7 @@ def shuffle_dataset(cml:pd.DataFrame, segment_size = 20000):
     cml['shuffled_segment_id'] = cml['segment_id'].map(shuffle_map)
     cml_shuffled = cml.sort_values(['shuffled_segment_id', 'time']).reset_index(drop=True)
 
-    # to sort cml back: cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
+    # to sort cml back: 
+    # cml = cml.sort_values(['segment_id', 'time']).reset_index(drop=True)
 
     return cml_shuffled

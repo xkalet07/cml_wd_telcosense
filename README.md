@@ -33,6 +33,13 @@ TODO: period of trsl == reference wet/dry. Meaning, for each trsl point there wi
 TODO: Forward and backward memory implementation will be needed.  
 TODO: This approach should bring better learning performance. For longer wet/dry periods there are ocasions, where the period is wet, but trsl shows rain pattern for only fraction of the period.  
 TODO: some CML still has NaN gaps, find it and exclude the NaN samples.  
+TODO: problem with ceragon_ip_10  
+DONE: implement pooling, we need shorttime-longtime pattern reckognition  
+TODO: Plots doesnt show cml ip or any id as a title  
+TODO: Data augmentation: noise injecting, time warp, Random scaling, mixUp/cutMix  
+TODO: Improve WD ref preprocessing by including single dry samples between 2 rainy as wet, if R is nonzero  
+TODO: In the CNN modul, investigate the time pooling: x = torch.mean(x,dim=-1). It completely averages one dimension in one step.  
+TODO: 2 outputs instead of single output? classify based on 2 probabilities pW and pD instead of one pW?  
 
 
 ## Hyperparameter tuning  

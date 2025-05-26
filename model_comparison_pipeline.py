@@ -43,8 +43,8 @@ from telcosense_classification import metrics_utility
 
 """ Constant Variable definitions """
 
-dir = 'TelcoRain/merged_data_preprocessed_short_old/whole_dataset_shuffled.csv'     # shuffled by 256*60
-param_dir = 'cnn_param_thesis_v22_2025-05-15_22;01'
+dir = 'TelcoRain/merged_data_preprocessed_short_old/whole_dataset_metadata_shuffled.csv'     # shuffled by 256*60
+param_dir = '2025-05-13_09;24_doesnt work'    #cnn_polz_ds_cz_param_2025-05-13_17;19' #ref_cz_very_good_2025-05-19_14;26'
 
 # Training CNN parameters
 num_channels = 2
@@ -67,24 +67,10 @@ save_param = True
 """ Main """
 cml = pd.read_csv(dir)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 cnn_wd_threshold = 0.5
 
 # Training
-if 0:  
+if 1:  
     cnn_out, train_loss, test_loss = cnn_utility.cnn_train(cml, 
                                         num_channels, 
                                         sample_size, 
@@ -119,7 +105,7 @@ if 0:
     false_alarm = cnn_wd & ~ref_wd
 
     
-elif 1:
+elif 0:
     # Classification
     cml = cml[int(len(cml)*0.8):].reset_index(drop=True)
 
@@ -152,6 +138,31 @@ elif 1:
     true_wet = cnn_wd & ref_wd 
     false_alarm = cnn_wd & ~ref_wd
 
+elif 0:
+    #RSD method
+    cml = cml[int(len(cml)*0.8):].reset_index(drop=True)
+
+    RSD_threshold = 0.07
+    cnn_wd_threshold = RSD_threshold
+
+    rolling_std = cml['trsl_A'].rolling(window=60, center=True).std()
+
+    # Fill NaN values at the edges
+    rolling_std.fillna(method='bfill', inplace=True)
+    rolling_std.fillna(method='ffill', inplace=True)
+    
+    # RSD output
+    cml['cnn_out'] = rolling_std
+    cml['cnn_wd'] = cml.cnn_out > RSD_threshold
+    plot_utility.plot_cnn_classification(cml.reset_index(drop=True),RSD_threshold)
+
+    cnn_out = cml.cnn_out.values
+    ref_wd = cml.ref_wd.values
+    cnn_wd = cml.cnn_wd.values
+    true_wet = cnn_wd & ref_wd 
+    false_alarm = cnn_wd & ~ref_wd
+
+
 
 TP_test = sum(true_wet)/sum(ref_wd)
 FP_test = sum(false_alarm)/sum(ref_wd)
@@ -162,7 +173,7 @@ print('FP: ' + str(FP_test))
 ### Metrics
 # source: https://github.com/jpolz/cnn_cml_wet-dry_example/blob/master/CNN_for_CML_example_nb.ipynb
 print('CNN scores')
-'''
+
 # ROC curve 
 roc_curve = metrics_utility.calculate_roc_curve(cnn_out,ref_wd,0,1)
 roc_surface = metrics_utility.calculate_roc_surface(roc_curve).round(decimals=3)
@@ -172,8 +183,8 @@ metrics_utility.plot_roc_curve(roc_curve,cnn_wd_threshold)
 # confusion matrix 
 cm = skl.confusion_matrix(ref_wd, cnn_wd, labels=[1,0], normalize='true').round(decimals=3)
 print('normalized confusion matrix:\n',cm)
-print('TNR:', cm[0,0])
-print('TPR:', cm[1,1])
+print('TPR:', cm[0,0])
+print('TNR:', cm[1,1])
 metrics_utility.plot_confusion_matrix(cm)
 
 # Matthews Correlation Coeficient
@@ -200,8 +211,8 @@ metrics_utility.plot_roc_curve(roc_curve,cnn_wd_threshold)
 # confusion matrix 
 cm = skl.confusion_matrix(ref_wd, cnn_wd, labels=[1,0], normalize='true').round(decimals=3)
 print('normalized confusion matrix:\n',cm)
-print('TNR:', cm[0,0])
-print('TPR:', cm[1,1])
+print('TPR:', cm[0,0])
+print('TNR:', cm[1,1])
 metrics_utility.plot_confusion_matrix(cm)
 
 # Matthews Correlation Coeficient
@@ -217,5 +228,5 @@ print('F1:', f1)
 
 
 
-
+'''
 input('press enter to continue')
