@@ -3,10 +3,10 @@
 """
 Filename: model_comparison_pipeline.py
 Author: Lukas Kaleta
-Date: 2025-05-05
-Version: 1.0
+Date: 2025-05-26
+Version: 2.0t
 Description: 
-    This script compares several methods of Wet/Dry classification using CML data
+    This script compares several methods of Wet/Dry classification using already preprocessed CML data
     Methods in comparison:
         Developed CNN model
         Reference CNN model from https://github.com/jpolz/cml_wd_pytorch 
@@ -21,99 +21,46 @@ Contact: 211312@vutbr.cz
 
 """ Imports """
 # Import python libraries
-
-import math
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
-import os
-import datetime
 import sklearn.metrics as skl
 
 # Import external packages
-import pycomlink
 
 # Import own modules
 from telcosense_classification import cnn_utility
 from telcosense_classification import plot_utility
-from telcosense_classification import preprocess_utility
 from telcosense_classification import metrics_utility
 
 
 """ Constant Variable definitions """
 
 dir = 'TelcoRain/merged_data_preprocessed_short_old/whole_dataset_metadata_shuffled.csv'     # shuffled by 256*60
-param_dir = '2025-05-13_09;24_doesnt work'    #cnn_polz_ds_cz_param_2025-05-13_17;19' #ref_cz_very_good_2025-05-19_14;26'
+param_dir = 'cnn_v22_ds_cz_param_2025-05-15_22;01'   
 
-# Training CNN parameters
+
+# CNN parameters
 num_channels = 2
 sample_size = 60            # 60 keep lower than FC num of neurons
 batchsize = 256             # 128 most smooth
-epochs = 15                 # 50
-resume_epoch = 0 
-learning_rate = 0.0002      # 0.0002 or 0.0003
-dropout_rate = 0.001        # 0.001
 kernel_size = 3             # 3 - best performance
 n_conv_filters = [16, 32, 64, 128]     # [16, 32, 64, 128]
 n_fc_neurons = 64          # 64 better FP, 128 better TP
 single_output = True
-shuffle = False
-save_param = True
 
 """ Function definitions """
 
 
 """ Main """
+# Load .csv file of merged preproccesed, shuffled data
 cml = pd.read_csv(dir)
 
-cnn_wd_threshold = 0.5
+# Classification only for the last 20 % of dataset
+cml = cml[int(len(cml)*0.8):].reset_index(drop=True)
 
-# Training
-if 1:  
-    cnn_out, train_loss, test_loss = cnn_utility.cnn_train(cml, 
-                                        num_channels, 
-                                        sample_size, 
-                                        batchsize, 
-                                        epochs, 
-                                        resume_epoch, 
-                                        learning_rate, 
-                                        dropout_rate, 
-                                        kernel_size, 
-                                        n_conv_filters, 
-                                        n_fc_neurons, 
-                                        single_output, 
-                                        shuffle, 
-                                        save_param
-                                        )
-    cutoff = len(cml) % sample_size
-    if cutoff == 0:
-        ref_wd = cml.ref_wd.values[:][::sample_size]
-        cml['cnn_out'] = np.repeat(cnn_out, sample_size)   
-    else:
-        ref_wd = cml.ref_wd.values[:-cutoff][::sample_size]
-        cml['cnn_out'] = np.append(np.repeat(cnn_out, sample_size), np.zeros(cutoff))      
-    cml['cnn_wd'] = cml.cnn_out > cnn_wd_threshold
-    plot_utility.plot_cnn_classification(cml[int(len(cml)*0.8):].reset_index(drop=True),cnn_wd_threshold)
-   
-    # use only last 20% which is Testdata
-    cnn_out = cnn_out[int(len(cnn_out)*0.8):]
-    ref_wd = ref_wd[int(len(ref_wd)*0.8):]
-
-    cnn_wd = cnn_out > cnn_wd_threshold
-    true_wet = cnn_wd & ref_wd 
-    false_alarm = cnn_wd & ~ref_wd
-
-    
-elif 0:
-    # Classification
-    cml = cml[int(len(cml)*0.8):].reset_index(drop=True)
-
-
-
-    #plot_utility.plot_input_oneplot(cml)
-
-
+# Use Implemented CNN for classification
+if 1 :
     cnn_out, loss =  cnn_utility.cnn_classify(cml, 
                             param_dir,
                             num_channels,
@@ -125,7 +72,10 @@ elif 0:
                             single_output
                             )
     
-    cutoff = len(cml) % sample_size
+    # aligning the output back into dataset
+    cutoff = len(cml) % sample_size     # number of values cut off by sample grouping 
+    cnn_wd_threshold = 0
+
     if cutoff == 0:
         ref_wd = cml.ref_wd.values[:][::sample_size]
         cml['cnn_out'] = np.repeat(cnn_out, sample_size)   
@@ -133,6 +83,8 @@ elif 0:
         ref_wd = cml.ref_wd.values[:-cutoff][::sample_size]
         cml['cnn_out'] = np.append(np.repeat(cnn_out, sample_size), np.zeros(cutoff))      
     cml['cnn_wd'] = cml.cnn_out > cnn_wd_threshold
+
+    # plot output
     plot_utility.plot_cnn_classification(cml.reset_index(drop=True),cnn_wd_threshold)
     cnn_wd = cnn_out > cnn_wd_threshold
     true_wet = cnn_wd & ref_wd 
@@ -140,11 +92,9 @@ elif 0:
 
 elif 0:
     #RSD method
-    cml = cml[int(len(cml)*0.8):].reset_index(drop=True)
-
     RSD_threshold = 0.07
-    cnn_wd_threshold = RSD_threshold
 
+    # calculate the RSD method
     rolling_std = cml['trsl_A'].rolling(window=60, center=True).std()
 
     # Fill NaN values at the edges
@@ -162,6 +112,7 @@ elif 0:
     true_wet = cnn_wd & ref_wd 
     false_alarm = cnn_wd & ~ref_wd
 
+    cnn_wd_threshold = RSD_threshold
 
 
 TP_test = sum(true_wet)/sum(ref_wd)
@@ -197,36 +148,7 @@ print('ACC:', acc)
 
 f1 = np.round(skl.f1_score(ref_wd, cnn_wd),decimals=3)
 print('F1:', f1)
-'''
-ref_wd = ref_wd[591100//60:646000//60]
-cnn_out = cnn_out[591100//60:646000//60]
-cnn_wd = cnn_wd[591100//60:646000//60]
-
-# ROC curve 
-roc_curve = metrics_utility.calculate_roc_curve(cnn_out,ref_wd,0,1)
-roc_surface = metrics_utility.calculate_roc_surface(roc_curve).round(decimals=3)
-print('ROC surface A:', roc_surface)
-metrics_utility.plot_roc_curve(roc_curve,cnn_wd_threshold)
-
-# confusion matrix 
-cm = skl.confusion_matrix(ref_wd, cnn_wd, labels=[1,0], normalize='true').round(decimals=3)
-print('normalized confusion matrix:\n',cm)
-print('TPR:', cm[0,0])
-print('TNR:', cm[1,1])
-metrics_utility.plot_confusion_matrix(cm)
-
-# Matthews Correlation Coeficient
-mcc = skl.matthews_corrcoef(ref_wd, cnn_wd).round(decimals=3)
-print('MCC:', mcc)
-
-# ACC 
-acc = np.round(skl.accuracy_score(ref_wd, cnn_wd),decimals=3)
-print('ACC:', acc)
-
-f1 = np.round(skl.f1_score(ref_wd, cnn_wd),decimals=3)
-print('F1:', f1)
 
 
 
-'''
 input('press enter to continue')
