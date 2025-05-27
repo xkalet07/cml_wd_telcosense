@@ -36,6 +36,7 @@ Reference methods:
 - Reference CNN model from https://github.com/jpolz/cml_wd_pytorch   
 - State of the art, non-ML method RSD using rolling window STD: https://github.com/pycomlink/pycomlink  
   
+`classify_workflow.py` - The typical workflow of utilizing the trained CNN module for rain event detection using CML data from czech republic and CHMI.
 
 
 ## objectives:
