@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Filename: r_est_waa_workflow.py
+Filename: waa_workflow.py
 Author: Lukas Kaleta
 Date: 2025-05-26
 Version: 2.0t
 Description: 
-    Use CML data with predicted wet/dry periods to estimate rainrate from rain induced attenuation 
+    Predict WD class using CML data and to estimate rainrate from rain induced attenuation 
     This script compares several methods of Wet Antenna Attenuation (WAA) compensations
         methods: Schleiss, Leijnse and Pastorek 
     Using modules imported from Pycomlink and code based on Pycomlink Tutorials

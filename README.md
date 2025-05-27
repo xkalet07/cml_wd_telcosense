@@ -6,6 +6,7 @@ Project by TelcoSense
 
 author: Lukáš Kaleta  
 
+
 ## Abstract: 
 
 This thesis presents an implementation of Convolutional Neural Network (CNN) model
@@ -20,6 +21,21 @@ methods, achieving overall TPR of 0.65 and TNR of 0.97, its performance strongly
 decreased (TPR = 0.33 and TNR = 0.93) when used on the Czech data. This outcome
 suggests that the current CNN model is well-suited for robust rain detection, but the
 CML data quality and available methods of data collection have to be improved.
+
+
+## Example scripts:
+
+`waa_workflow.py` - Predict WD class using CML data and to estimate rainrate from rain induced attenuation. This script compares several methods of Wet Antenna Attenuation (WAA) compensations: Schleiss, Leijnse and Pastorek.  
+
+`train_workflow.py` - The typical workflow of data preprocesssing and training a CNN module for rain event detection using CML data from czech republic and CHMI.
+
+`preprocess_all_workflow.py` - The typical workflow of preprocessing all of the avalable CML data in directory and storing them as separate .csv files for classification     or one .csv file to use as training dataset.
+    
+`model_comparison_pipeline.py` - This script compares developed CNN model, with reference Wet/Dry classification methods. Using already preprocessed CML data.  
+Reference methods:  
+- Reference CNN model from https://github.com/jpolz/cml_wd_pytorch   
+- State of the art, non-ML method RSD using rolling window STD: https://github.com/pycomlink/pycomlink  
+  
 
 
 ## objectives:
