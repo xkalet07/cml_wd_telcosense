@@ -86,36 +86,42 @@ def calculate_roc_surface(roc:np.array):
     return area
 
 
-def plot_roc_curve(roc:np.array, threshold = 0.5):
+def plot_roc_curve(roc_dict: dict):
     """
-    Plot calculated ROC curve of the given CNN output,
+    Plot one or multiple calculated ROC curves of given models outputs,
     ROC curve shows a tradeoff between TPR and FPR when adjusting the 1/0 comparison threshold
 
-    Source: https://github.com/jpolz/cnn_cml_wet-dry_example/blob/master/CNN_for_CML_example_nb.ipynb
-    
     Parameters
-    roc : np.array, Clalculated ROC curve
-    threshold : float, default = 0.5, threshold for T/F classification of the CNN output. typically between 0-1
-    """
-    plt.figure(figsize=(5,5))
-    
-    # plot ROC curve
-    plt.plot(roc[:,1],roc[:,0], label='RSD, AUC: '+str(np.round(calculate_roc_surface(roc), decimals=3)), zorder=2, lw=2)
-    plt.plot(roc[:,1],roc[:,0], label='RSD, AUC: '+str(np.round(calculate_roc_surface(roc), decimals=3)), zorder=2, lw=2)
-    plt.plot(roc[:,1],roc[:,0], label='RSD, AUC: '+str(np.round(calculate_roc_surface(roc), decimals=3)), zorder=2, lw=2)
-
-    # plot point of cnn threshold
-    plt.scatter(roc[int(threshold*1000),1],roc[int(threshold*1000),0], color='black', marker='h', s=75, label='$\\tau_{RSD}$ ='+str(threshold), zorder=3)
+        roc_dict: dict of {'method_name': {'roc': np.array, 'threshold': float}}
+        example:        
+        roc_dict = {
+            'modelA': {
+                'roc': np.array,  # shape (N, 2)
+                'threshold': float(0.5)
+            },
+            'modelB': {
+                'roc': np.array,  # shape (N, 2)
+                'threshold': float(0.7)
+            }
+        }
+    """   
+    plt.figure(figsize=(7,7))
+    for name, data in roc_dict.items():
+        roc = data['roc']
+        thr = data['threshold']
+        plt.plot(roc[:,1], roc[:,0], label=f'{name}, $\\tau$={thr}, AUC: {np.round(calculate_roc_surface(roc), 3)}', zorder=2, lw=2)
+        idx = int(thr * 1000)
+        if idx < len(roc):
+            plt.scatter(roc[idx,1], roc[idx,0], color='black', marker='o', zorder=3)
     
     plt.plot([0,0,1,0,1,1],[0,1,1,0,0,1], 'k-', linewidth=0.3, zorder=1)
     plt.title('TPR = f(TNR)')
     plt.xlabel('False positive rate [-]')
     plt.ylabel('True positive rate [-]')
-    plt.legend(loc='lower right', ncol=2, frameon=False)
+    plt.legend(loc='lower right', frameon=False)
     plt.grid()
     plt.yticks(np.arange(0, 1.01, 0.1))
     plt.xticks(np.arange(0, 1.01, 0.1))
-    plt.tight_layout()
     plt.show()
 
 
@@ -140,8 +146,8 @@ def plot_confusion_matrix(cm:np.array):
     thresh = cm.max() / 2.
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
         plt.text(j, i, format(cm[i, j], fmt),
-                horizontalalignment="center",
-                color="white" if cm[i, j] > thresh else "black"
+                horizontalalignment='center',
+                color='white' if cm[i, j] > thresh else 'black'
     )
         
     plt.xlabel('Predicted')
