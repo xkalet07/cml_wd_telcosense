@@ -50,7 +50,7 @@ def calculate_roc_curve(cnn_pred:np.array, ref_wd:np.array, tr_start:float, tr_e
     roc = []
     for i in range(tr_start*1000,1+tr_end*1000,1):
         t = i/1000
-        y_predicted=np.ravel(cnn_pred>t)  
+        y_predicted=cnn_pred>t              #removed np.ravel() to not flatten the array
         true_pos = np.sum(np.logical_and(ref_wd==1, y_predicted==1))
         true_neg = np.sum(np.logical_and(ref_wd==0, y_predicted==0))
         false_pos = np.sum(np.logical_and(ref_wd==0, y_predicted==1))
