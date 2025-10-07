@@ -1,0 +1,29 @@
+name: cml-wd-telcosense
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - bottleneck
+  - cftime
+  - fsspec
+  - h5py>=3.9,<4.0
+  - jinja2
+  - matplotlib>=3.8,<4.0
+  - netcdf4
+  - networkx
+  - numba>=0.59,<0.62
+  - numpy>=1.26,<3.0
+  - pandas>=2.2,<3.0
+  - poligrain
+  - pycomlink
+  - pyproj
+  - pykrige
+  - scikit-learn>=1.4,<2.0
+  - scipy>=1.12,<2.0
+  - shapely
+  - sparse
+  - sympy
+  - pytorch>=2.3,<3.0
+  - tqdm
+  - xarray>=2024.1,<2026.0
