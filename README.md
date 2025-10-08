@@ -1,6 +1,6 @@
 # Rain activity detection using microwave link data with convolutional neural network
 
-Repository of Masters thesis CNN implementation 2024/2025  
+Python package for rain event detection, using signal loss data from Commercial Microwave Links, with the use of Convolutional Neuron Network. Package includes utility for CNN model inference, CML data preprocessing, results evaluation, CNN model trainingu.  
 
 Project by TelcoSense
 
@@ -8,6 +8,8 @@ author: Lukáš Kaleta
 
 
 ## Abstract: 
+
+Package built as a Masters thesis in years 2024/2025 for rain event detection using CML data from czech republic and CHMI.   
 
 This thesis presents an implementation of Convolutional Neural Network (CNN) model
 for rain event detection, using signal loss from Commercial Microwave Link (CML).
@@ -24,8 +26,8 @@ CML data quality and available methods of data collection have to be improved.
 
 
 ## Example scripts:
-
-`waa_workflow.py` - Predict WD class using CML data and to estimate rainrate from rain induced attenuation. This script compares several methods of Wet Antenna Attenuation (WAA) compensations: Schleiss, Leijnse and Pastorek.  
+  
+`inference_workflow.py` - The typical workflow of utilizing the trained CNN module for rain event detection using CML data from czech republic and CHMI.
 
 `train_workflow.py` - The typical workflow of data preprocesssing and training a CNN module for rain event detection using CML data from czech republic and CHMI.
 
@@ -35,45 +37,17 @@ CML data quality and available methods of data collection have to be improved.
 Reference methods:  
 - Reference CNN model from https://github.com/jpolz/cml_wd_pytorch   
 - State of the art, non-ML method RSD using rolling window STD: https://github.com/pycomlink/pycomlink  
-  
-`classify_workflow.py` - The typical workflow of utilizing the trained CNN module for rain event detection using CML data from czech republic and CHMI.
+
+`waa_workflow.py` - Predict WD class using CML data and to estimate rainrate from rain induced attenuation. This script compares several methods of Wet Antenna Attenuation (WAA) compensations: Schleiss, Leijnse and Pastorek.  
 
 
 ## objectives:
 
-DONE: bad gauge reference interpolation  
-DONE: rain gauge reference SRA10M is missing in some technologies  
-DONE: skip cmls without SRA10M inside the main skript: check for it. Long computation!!!  
-DONE-doublecheck: single extreme rsl values like 90 dB or so.  
-DONE-doublecheck: calculate new mean value when skipping large nan gaps, causing steps in rsl data  
-tip: floating standardization excludes long term fluctuation  
 TODO: load cml B using its IP, not i+1  
-DONE: filtered metadata is duplicative. each cml is there 2 times identically  
-tip: cmlAip and cmlBip are next to each other and cmlBip is always cmlAip+1  
-TODO: copy data into NaN gaps from adjacent cml #cml['rsl_A'] = cml.rsl_A + cml.rsl_B.where(np.isnan(cml.rsl_A))  
-TODO: copy adjacent data, if large chunk of rsl is missing: 1s10: 12  
-DONE: delete few values around step  
-TODO: better interpolation: https://stackoverflow.com/questions/30533021/interpolate-or-extrapolate-only-small-gaps-in-pandas-dataframe  
-DONE: detect uptime resets  
-DONE: dry 10min segments during light rainfall  
-tip: Summit technology rsl is [-dB]  
-TODO: Feed cnn constant metadata such as frequency, technology, length...  
-TODO: Feed cnn the cml temperature  
-DONE: If uptime is constant drop values  
-TODO: spikes remaining around step after supressing the step in preprocessing (especially 1s10)  
-tip: all datetime is in UTC time  
-TODO: Different preprocess tresholds for different cml technologies  
-TODO: period of trsl == reference wet/dry. Meaning, for each trsl point there will be wet/dry flag predicted.  
-TODO: Forward and backward memory implementation will be needed.  
-TODO: This approach should bring better learning performance. For longer wet/dry periods there are ocasions, where the period is wet, but trsl shows rain pattern for only fraction of the period.  
-TODO: some CML still has NaN gaps, find it and exclude the NaN samples.  
-TODO: problem with ceragon_ip_10  
-DONE: implement pooling, we need shorttime-longtime pattern reckognition  
-TODO: Plots doesnt show cml ip or any id as a title  
-TODO: Data augmentation: noise injecting, time warp, Random scaling, mixUp/cutMix  
-TODO: Improve WD ref preprocessing by including single dry samples between 2 rainy as wet, if R is nonzero  
-TODO: In the CNN modul, investigate the time pooling: x = torch.mean(x,dim=-1). It completely averages one dimension in one step.  
-TODO: 2 outputs instead of single output? classify based on 2 probabilities pW and pD instead of one pW?  
+TODO: copy data into NaN gaps from adjacent CML #cml['rsl_A'] = cml.rsl_A + cml.rsl_B.where(np.isnan(cml.rsl_A)), example: 1s10: 12  
+TODO: better [interpolation](https://stackoverflow.com/questions/30533021/interpolate-or-extrapolate-only-small-gaps-in-pandas-dataframe)  
+TODO: Add constant CML metadata such as frequency, technology, length... as and CNN input  
+TODO: Test CML end device's temperature as an CNN input  
 
 
 ## Hyperparameter tuning  
@@ -96,4 +70,4 @@ TODO: 2 outputs instead of single output? classify based on 2 probabilities pW a
 ## sources:  
 (1) CML wet/dry using Pytorch: https://github.com/jpolz/cml_wd_pytorch/blob/main/wd_pytorch/train_cnn.ipynb  
 (2) Pycomlink: https://github.com/pycomlink/pycomlink  
-(3) JPolz: CML wet/dry using Tensorflow: https://github.com/jpolz/cnn_cml_wet-dry_example/blob/master/CNN_for_CML_example_nb.ipynb  
+(3) CML wet/dry using Tensorflow: https://github.com/jpolz/cnn_cml_wet-dry_example/blob/master/CNN_for_CML_example_nb.ipynb  

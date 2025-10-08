@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Filename: classify_workflow.py
+Filename: inference_workflow.py
 Author: Lukas Kaleta
 Date: 2025-05-26
 Version: 2.0t
